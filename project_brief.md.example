@@ -1,0 +1,12 @@
+# Goals
+- Build a user-friendly tool for orchestrating agent skills per project.
+- Keep operation simple for non-technical users.
+
+# Constraints
+- No separate web UI.
+- Local-first operation.
+- Deterministic routing behavior.
+
+# Deliverables
+- Desktop shell with start/status/end/history.
+- Local service with routing and lifecycle APIs.

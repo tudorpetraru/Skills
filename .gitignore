@@ -1,0 +1,26 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+.venv311/
+venv/
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Local runtime state
+*.db
+*.sqlite
+*.sqlite3
