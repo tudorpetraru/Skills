@@ -20,7 +20,7 @@ SERVER_INSTRUCTIONS = (
 
 mcp = FastMCP(name=SERVER_NAME, instructions=SERVER_INSTRUCTIONS, log_level="WARNING")
 _engine: SkillAutopilotEngine | None = None
-_jobs = AsyncJobManager(max_workers=6)
+_jobs: AsyncJobManager | None = None
 
 
 def _make_engine(config_path: Optional[str] = None) -> SkillAutopilotEngine:
@@ -33,6 +33,15 @@ def _get_engine() -> SkillAutopilotEngine:
     if _engine is None:
         _engine = _make_engine()
     return _engine
+
+
+def _get_jobs() -> AsyncJobManager:
+    global _jobs
+    if _jobs is None:
+        engine = _get_engine()
+        state_path = Path(engine.config.db_path).expanduser().parent / "mcp_jobs.json"
+        _jobs = AsyncJobManager(max_workers=6, state_file=str(state_path))
+    return _jobs
 
 
 @mcp.tool(name="sa_start_project", description="Start a project from a workspace brief and activate selected skills")
@@ -54,12 +63,17 @@ def mcp_start_project(
         )
     )
     plan = engine.db.get_latest_plan(response.project_id)
+    project = engine.db.get_project(response.project_id) or {}
+    brief_diag = validate_brief_path(project.get("brief_path", resolved_brief))
+    brief_summary = (plan or {}).get("plan_json", {}).get("summary", {}) if plan else {}
     return {
         "project_id": response.project_id,
         "status": response.status,
         "plan_id": response.plan_id,
         "selected_skills": [item.model_dump() for item in response.selected_skills],
         "action_plan": plan["plan_json"] if plan else None,
+        "brief_resolution": brief_diag,
+        "brief_summary": brief_summary,
         "execution": _dispatch_or_run(
             project_id=response.project_id,
             auto_approve_gates=auto_approve_gates,
@@ -78,17 +92,9 @@ def mcp_project_status(project_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool(name="sa_reroute_project", description="Reroute active project skills after brief changes")
-def mcp_reroute_project(project_id: str) -> Dict[str, Any]:
+def mcp_reroute_project(project_id: str, force: bool = False) -> Dict[str, Any]:
     engine = _get_engine()
-    changed = engine.reroute_if_material_change(project_id)
-    route = engine.db.get_latest_route(project_id)
-    plan = engine.db.get_latest_plan(project_id)
-    return {
-        "project_id": project_id,
-        "rerouted": changed,
-        "latest_route_id": route["route_id"] if route else None,
-        "latest_plan_id": plan["plan_id"] if plan else None,
-    }
+    return engine.reroute_project(project_id=project_id, force=force)
 
 
 @mcp.tool(name="sa_end_project", description="End an active project and deactivate all skill leases")
@@ -141,9 +147,13 @@ def mcp_run_project(project_id: str, auto_approve_gates: bool = True, wait_for_c
 
 
 @mcp.tool(name="sa_task_status", description="Return latest execution run status and per-task outcomes")
-def mcp_task_status(project_id: str) -> Dict[str, Any]:
+def mcp_task_status(project_id: str, task_limit: int = 50, include_outputs: bool = False) -> Dict[str, Any]:
     engine = _get_engine()
-    return engine.task_status(project_id).model_dump(mode="json")
+    return engine.task_status(
+        project_id=project_id,
+        task_limit=max(1, min(task_limit, 500)),
+        include_outputs=include_outputs,
+    ).model_dump(mode="json")
 
 
 @mcp.tool(name="sa_observability_overview", description="Return live health view of active projects with stale/progressing classification")
@@ -177,7 +187,7 @@ def mcp_approve_gate(project_id: str, gate_id: str, approved_by: str = "human", 
 
 @mcp.tool(name="sa_job_status", description="Poll background MCP job status for async start/run operations")
 def mcp_job_status(job_id: str) -> Dict[str, Any]:
-    row = _jobs.get(job_id)
+    row = _get_jobs().get(job_id)
     if row is None:
         return {"job_id": job_id, "status": "not_found"}
     return {
@@ -195,7 +205,7 @@ def mcp_job_status(job_id: str) -> Dict[str, Any]:
 @mcp.tool(name="sa_jobs_recent", description="List recent async MCP jobs for debugging")
 def mcp_jobs_recent(limit: int = 20) -> Dict[str, Any]:
     items = []
-    for row in _jobs.list_recent(limit=limit):
+    for row in _get_jobs().list_recent(limit=limit):
         items.append(
             {
                 "job_id": row["job_id"],
@@ -258,7 +268,7 @@ def _dispatch_or_run(project_id: str, auto_approve_gates: bool, wait_for_complet
         out = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
         return out.model_dump(mode="json")
 
-    job_id = _jobs.submit(job_type="run_project", fn=_work, project_id=project_id)
+    job_id = _get_jobs().submit(job_type="run_project", fn=_work, project_id=project_id)
     return {"status": "accepted", "job_id": job_id, "project_id": project_id}
 
 

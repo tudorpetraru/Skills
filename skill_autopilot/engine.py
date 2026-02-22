@@ -129,11 +129,17 @@ class SkillAutopilotEngine:
                 status="started",
             )
 
-    def reroute_if_material_change(self, project_id: str) -> bool:
+    def reroute_project(self, project_id: str, force: bool = False) -> Dict[str, object]:
         with self._lock:
             project = self.db.get_project(project_id)
             if not project or project["state"] != ProjectState.ACTIVE.value:
-                return False
+                return {
+                    "project_id": project_id,
+                    "rerouted": False,
+                    "reason": "project_not_active",
+                    "latest_route_id": None,
+                    "latest_plan_id": None,
+                }
 
             request = StartProjectRequest(
                 workspace_path=project["workspace_path"],
@@ -143,13 +149,22 @@ class SkillAutopilotEngine:
 
             new_intent, brief_hash = parse_brief(request.brief_path)
             old_intent = self._intent_cache.get(project_id)
-            if old_intent is not None and not is_material_change(old_intent, new_intent):
+            material = True if old_intent is None else is_material_change(old_intent, new_intent)
+            if not force and old_intent is not None and not material:
                 self.db.add_audit_event(
                     event_type="project.reroute.skipped",
                     project_id=project_id,
                     payload={"reason": "non_material_change"},
                 )
-                return False
+                route = self.db.get_latest_route(project_id)
+                plan = self.db.get_latest_plan(project_id)
+                return {
+                    "project_id": project_id,
+                    "rerouted": False,
+                    "reason": "non_material_change",
+                    "latest_route_id": route["route_id"] if route else None,
+                    "latest_plan_id": plan["plan_id"] if plan else None,
+                }
 
             skills, snapshot_hash = load_catalog(self.config.allowlisted_catalogs)
             self._last_snapshot_hash = snapshot_hash
@@ -196,9 +211,23 @@ class SkillAutopilotEngine:
                 event_type="project.reroute.applied",
                 project_id=project_id,
                 route_id=route.route_id,
-                payload={"plan_id": plan_id, "selected_skill_count": len(route.selected_skills)},
+                payload={
+                    "plan_id": plan_id,
+                    "selected_skill_count": len(route.selected_skills),
+                    "reason": "forced" if force else ("material_change" if material else "initial_cache_miss"),
+                },
             )
-            return True
+            return {
+                "project_id": project_id,
+                "rerouted": True,
+                "reason": "forced" if force else ("material_change" if material else "initial_cache_miss"),
+                "latest_route_id": route.route_id,
+                "latest_plan_id": plan_id,
+            }
+
+    def reroute_if_material_change(self, project_id: str) -> bool:
+        out = self.reroute_project(project_id=project_id, force=False)
+        return bool(out.get("rerouted", False))
 
     def end_project(self, request: EndProjectRequest) -> EndProjectResponse:
         with self._lock:
@@ -257,20 +286,36 @@ class SkillAutopilotEngine:
                 approved_by=request.approved_by,
             )
 
-    def task_status(self, project_id: str) -> TaskStatusResponse:
+    def task_status(self, project_id: str, task_limit: int = 50, include_outputs: bool = False) -> TaskStatusResponse:
         project = self.db.get_project(project_id)
         if not project:
             raise KeyError(f"project_id not found: {project_id}")
         run = self.db.get_latest_project_run(project_id)
         if not run:
-            return TaskStatusResponse(project_id=project_id, status="not_started", executed_tasks=0, tasks=[], approvals=[])
-        tasks = self.db.list_task_runs(run["run_id"])
+            return TaskStatusResponse(
+                project_id=project_id,
+                status="not_started",
+                executed_tasks=0,
+                total_tasks=0,
+                summary={},
+                tasks=[],
+                approvals=[],
+            )
+        tasks = self.db.list_task_runs(run["run_id"], limit=task_limit)
+        if not include_outputs:
+            for item in tasks:
+                item.pop("output_json", None)
         approvals = self.db.list_gate_approvals(project_id)
+        summary = run.get("summary_json") or {}
+        total_tasks = int(summary.get("planned_tasks") or len(tasks) or 0)
+        executed_tasks = int(summary.get("executed_tasks") or len(tasks) or 0)
         return TaskStatusResponse(
             project_id=project_id,
             run_id=run["run_id"],
             status=run["status"],
-            executed_tasks=len(tasks),
+            executed_tasks=executed_tasks,
+            total_tasks=total_tasks,
+            summary=summary,
             tasks=tasks,
             approvals=approvals,
         )

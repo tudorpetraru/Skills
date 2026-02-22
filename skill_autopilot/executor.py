@@ -56,24 +56,46 @@ class OrchestratorExecutor:
         )
 
         plan = plan_row["plan_json"]
-        phases = list(plan.get("phases", []))
+        phases = _normalize_phases(plan.get("phases", []))
         gates = list(plan.get("gates", []))
         task_order = 0
         executed_tasks = 0
+        failed_tasks = 0
         route_selected = _selected_skill_ids(self.db.get_latest_route(project_id))
+        planned_tasks = sum(len(list(phase.get("tasks", []))) for phase in phases)
+
+        self.db.update_project_run(
+            context.run_id,
+            "running",
+            {
+                "planned_tasks": planned_tasks,
+                "executed_tasks": 0,
+                "failed_tasks": 0,
+                "current_phase": "pending",
+                "pending_gates": [],
+            },
+            ended=False,
+        )
 
         for phase in phases:
             phase_name = str(phase.get("name", "build"))
             phase_tasks = list(phase.get("tasks", []))
-            phase_results = self.worker_pool.execute_phase(
-                project_id=project_id,
-                workspace_path=project["workspace_path"],
-                phase_name=phase_name,
-                tasks=phase_tasks,
-                selected_skills=route_selected,
+            self.db.update_project_run(
+                context.run_id,
+                "running",
+                {
+                    "planned_tasks": planned_tasks,
+                    "executed_tasks": executed_tasks,
+                    "failed_tasks": failed_tasks,
+                    "current_phase": phase_name,
+                    "phase_task_count": len(phase_tasks),
+                    "pending_gates": [],
+                },
+                ended=False,
             )
 
-            for res in phase_results:
+            def _on_result(res) -> None:
+                nonlocal task_order, executed_tasks, failed_tasks
                 task_order += 1
                 task = res.task
                 task_id = str(task.get("task_id", f"{phase_name}-{task_order}"))
@@ -98,27 +120,63 @@ class OrchestratorExecutor:
                 if status == "completed":
                     executed_tasks += 1
                 else:
-                    summary = {
+                    failed_tasks += 1
+
+                self.db.update_project_run(
+                    context.run_id,
+                    "running",
+                    {
+                        "planned_tasks": planned_tasks,
                         "executed_tasks": executed_tasks,
+                        "failed_tasks": failed_tasks,
+                        "current_phase": phase_name,
+                        "last_task_id": task_id,
+                        "last_task_status": status,
                         "pending_gates": [],
-                        "failed_task": task_id,
-                        "failed_host": res.host,
-                        "error": error_text or "task failed",
-                        "finished_at": utc_now().isoformat(),
-                    }
-                    self.db.update_project_run(context.run_id, "failed", summary)
-                    self.db.add_audit_event(
-                        event_type="project.run.failed",
-                        project_id=project_id,
-                        payload={"run_id": context.run_id, "task_id": task_id, "host": res.host, "error": error_text},
-                    )
-                    return RunProjectResponse(
-                        project_id=project_id,
-                        run_id=context.run_id,
-                        status="failed",
-                        executed_tasks=executed_tasks,
-                        pending_gates=[],
-                    )
+                    },
+                    ended=False,
+                )
+
+            phase_results = self.worker_pool.execute_phase(
+                project_id=project_id,
+                workspace_path=project["workspace_path"],
+                phase_name=phase_name,
+                tasks=phase_tasks,
+                selected_skills=route_selected,
+                on_result=_on_result,
+            )
+
+            failure = next((res for res in phase_results if res.status != "completed"), None)
+            if failure:
+                failed_task_id = str(failure.task.get("task_id", "unknown"))
+                summary = {
+                    "planned_tasks": planned_tasks,
+                    "executed_tasks": executed_tasks,
+                    "failed_tasks": failed_tasks,
+                    "pending_gates": [],
+                    "failed_task": failed_task_id,
+                    "failed_host": failure.host,
+                    "error": failure.error or "task failed",
+                    "finished_at": utc_now().isoformat(),
+                }
+                self.db.update_project_run(context.run_id, "failed", summary)
+                self.db.add_audit_event(
+                    event_type="project.run.failed",
+                    project_id=project_id,
+                    payload={
+                        "run_id": context.run_id,
+                        "task_id": failed_task_id,
+                        "host": failure.host,
+                        "error": failure.error,
+                    },
+                )
+                return RunProjectResponse(
+                    project_id=project_id,
+                    run_id=context.run_id,
+                    status="failed",
+                    executed_tasks=executed_tasks,
+                    pending_gates=[],
+                )
 
             gate = _phase_gate(phase_name=phase_name, gates=gates)
             if gate:
@@ -133,8 +191,11 @@ class OrchestratorExecutor:
 
                 if not self.db.is_gate_approved(project_id, gate_id):
                     summary = {
+                        "planned_tasks": planned_tasks,
                         "executed_tasks": executed_tasks,
+                        "failed_tasks": failed_tasks,
                         "pending_gates": [gate_id],
+                        "current_phase": phase_name,
                         "finished_at": utc_now().isoformat(),
                     }
                     self.db.update_project_run(context.run_id, "blocked", summary)
@@ -152,7 +213,9 @@ class OrchestratorExecutor:
                     )
 
         summary = {
+            "planned_tasks": planned_tasks,
             "executed_tasks": executed_tasks,
+            "failed_tasks": failed_tasks,
             "pending_gates": [],
             "finished_at": utc_now().isoformat(),
         }
@@ -195,3 +258,23 @@ def _selected_skill_ids(route: Dict[str, object] | None) -> List[str]:
         return [str(item.get("skill_id")) for item in parsed if isinstance(item, dict) and item.get("skill_id")]
     except Exception:  # noqa: BLE001
         return []
+
+
+def _normalize_phases(raw_phases: object) -> List[Dict[str, object]]:
+    phases: List[Dict[str, object]] = []
+    if not isinstance(raw_phases, list):
+        return phases
+    for item in raw_phases:
+        if isinstance(item, dict):
+            name = str(item.get("name", "build"))
+            tasks = item.get("tasks")
+            phases.append(
+                {
+                    "name": name,
+                    "tasks": tasks if isinstance(tasks, list) else [],
+                }
+            )
+            continue
+        if isinstance(item, str):
+            phases.append({"name": item, "tasks": []})
+    return phases

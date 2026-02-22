@@ -5,13 +5,13 @@ Base URL: `http://127.0.0.1:8787`
 This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 1. `sa_start_project`
 2. `sa_project_status`
-3. `sa_reroute_project`
+3. `sa_reroute_project` (`force` optional)
 4. `sa_end_project`
 5. `sa_project_history`
 6. `sa_active_plan`
 7. `sa_service_health`
 8. `sa_run_project`
-9. `sa_task_status`
+9. `sa_task_status` (`task_limit`, `include_outputs` optional)
 10. `sa_approve_gate`
 11. `sa_validate_brief_path`
 12. `sa_job_status`

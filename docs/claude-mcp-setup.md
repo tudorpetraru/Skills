@@ -50,7 +50,7 @@ After restart, Claude should list these MCP tools:
 1. Call `sa_start_project` with `workspace_path` and optional `brief_path`.
 2. Call `sa_run_project` (default async) and capture returned `job_id`.
 3. Poll `sa_job_status(job_id)` until status is `succeeded` or `failed`.
-4. Call `sa_task_status` to inspect run/task outputs from local DB.
+4. Call `sa_task_status` to inspect run/task outputs from local DB (`include_outputs=false` for fast polling).
 5. If blocked on a gate, call `sa_approve_gate`, then `sa_run_project` again.
 6. Call `sa_end_project` when done.
 7. If a brief path fails, call `sa_validate_brief_path` for resolution diagnostics.

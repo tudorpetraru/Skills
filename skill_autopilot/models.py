@@ -181,5 +181,7 @@ class TaskStatusResponse(BaseModel):
     run_id: Optional[str] = None
     status: Optional[str] = None
     executed_tasks: int = 0
+    total_tasks: int = 0
+    summary: Dict[str, object] = Field(default_factory=dict)
     tasks: List[Dict[str, object]] = Field(default_factory=list)
     approvals: List[Dict[str, object]] = Field(default_factory=list)

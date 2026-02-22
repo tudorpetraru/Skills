@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 from skill_autopilot.async_jobs import AsyncJobManager
 
@@ -34,3 +35,21 @@ def test_async_job_manager_failure() -> None:
             return
         time.sleep(0.01)
     raise AssertionError("job did not fail as expected")
+
+
+def test_async_job_manager_persists_state_across_restart(tmp_path: Path) -> None:
+    state_file = tmp_path / "mcp_jobs.json"
+    jobs = AsyncJobManager(max_workers=1, state_file=str(state_file))
+    job_id = jobs.submit("unit", lambda: {"ok": True}, project_id="p1")
+    for _ in range(100):
+        row = jobs.get(job_id)
+        assert row is not None
+        if row["status"] == "succeeded":
+            break
+        time.sleep(0.01)
+
+    restarted = AsyncJobManager(max_workers=1, state_file=str(state_file))
+    row = restarted.get(job_id)
+    assert row is not None
+    assert row["status"] == "succeeded"
+    assert row["project_id"] == "p1"

@@ -322,17 +322,27 @@ class Database:
                 (run_id, project_id, route_id, plan_id, "running", json.dumps({}, sort_keys=True), now),
             )
 
-    def update_project_run(self, run_id: str, status: str, summary: Dict[str, Any]) -> None:
+    def update_project_run(self, run_id: str, status: str, summary: Dict[str, Any], ended: bool = True) -> None:
         now = utc_now().isoformat()
         with self._connect() as conn:
-            conn.execute(
-                """
-                UPDATE project_runs
-                SET status=?, summary_json=?, ended_at=?
-                WHERE run_id=?
-                """,
-                (status, json.dumps(summary, sort_keys=True), now, run_id),
-            )
+            if ended:
+                conn.execute(
+                    """
+                    UPDATE project_runs
+                    SET status=?, summary_json=?, ended_at=?
+                    WHERE run_id=?
+                    """,
+                    (status, json.dumps(summary, sort_keys=True), now, run_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE project_runs
+                    SET status=?, summary_json=?
+                    WHERE run_id=?
+                    """,
+                    (status, json.dumps(summary, sort_keys=True), run_id),
+                )
 
     def get_latest_project_run(self, project_id: str) -> Optional[Dict[str, Any]]:
         with self._connect() as conn:
@@ -387,12 +397,18 @@ class Database:
                 ),
             )
 
-    def list_task_runs(self, run_id: str) -> List[Dict[str, Any]]:
+    def list_task_runs(self, run_id: str, limit: int | None = None) -> List[Dict[str, Any]]:
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM task_runs WHERE run_id=? ORDER BY order_index ASC",
-                (run_id,),
-            ).fetchall()
+            if limit is None:
+                rows = conn.execute(
+                    "SELECT * FROM task_runs WHERE run_id=? ORDER BY order_index ASC",
+                    (run_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM task_runs WHERE run_id=? ORDER BY order_index ASC LIMIT ?",
+                    (run_id, max(1, int(limit))),
+                ).fetchall()
             out: List[Dict[str, Any]] = []
             for row in rows:
                 payload = dict(row)

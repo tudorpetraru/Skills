@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from itertools import count
-from typing import Dict, Iterable, List, Sequence
+from typing import Callable, Dict, Iterable, List, Sequence
 
 import requests
 
@@ -44,6 +44,7 @@ class DistributedWorkerPool:
         phase_name: str,
         tasks: Sequence[Dict[str, object]],
         selected_skills: List[str],
+        on_result: Callable[[WorkerResult], None] | None = None,
     ) -> List[WorkerResult]:
         if not tasks:
             return []
@@ -69,7 +70,10 @@ class DistributedWorkerPool:
                 )
 
             for future in as_completed(futures):
-                results.append(future.result())
+                row = future.result()
+                results.append(row)
+                if on_result is not None:
+                    on_result(row)
 
         results.sort(key=lambda item: item.order_index)
         return results

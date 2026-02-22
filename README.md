@@ -45,13 +45,13 @@ Optional: auto-write Claude MCP config during install.
 ## MCP commands and options
 1. `sa_start_project(workspace_path, brief_path?, host_targets?, auto_run=false, auto_approve_gates=true, wait_for_run_completion=false)`
 2. `sa_project_status(project_id)`
-3. `sa_reroute_project(project_id)`
+3. `sa_reroute_project(project_id, force=false)`
 4. `sa_end_project(project_id, reason=completed)`
 5. `sa_project_history(limit=20)`
 6. `sa_active_plan(project_id)`
 7. `sa_service_health()`
 8. `sa_run_project(project_id, auto_approve_gates=true, wait_for_completion=false)`
-9. `sa_task_status(project_id)`
+9. `sa_task_status(project_id, task_limit=50, include_outputs=false)`
 10. `sa_approve_gate(project_id, gate_id, approved_by=human, note="")`
 11. `sa_validate_brief_path(workspace_path="", brief_path?)`
 12. `sa_job_status(job_id)`

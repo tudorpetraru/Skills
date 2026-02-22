@@ -31,6 +31,37 @@ def _extract_bullets(lines: List[str]) -> List[str]:
     return [b for b in bullets if b]
 
 
+def _extract_candidates(lines: List[str], max_items: int = 8) -> List[str]:
+    bullets = _extract_bullets(lines)
+    if bullets:
+        return bullets[:max_items]
+
+    items: List[str] = []
+    for raw in lines:
+        text = raw.strip()
+        if not text:
+            continue
+        if text.startswith("#"):
+            continue
+        if text.startswith("|") and text.endswith("|"):
+            continue
+        if re.match(r"^\d+\.\s+\[.+\]\(.+\)$", text):
+            # table-of-contents style line
+            continue
+
+        normalized = re.sub(r"\s+", " ", text)
+        parts = [p.strip(" -\t") for p in re.split(r"[.;]\s+", normalized) if p.strip()]
+        for part in parts:
+            if len(part) < 12:
+                continue
+            if part.lower().startswith("version:") or part.lower().startswith("date:"):
+                continue
+            items.append(part)
+            if len(items) >= max_items:
+                return items
+    return items
+
+
 def _collect_sections(text: str) -> Dict[str, List[str]]:
     lines = text.splitlines()
     sections = {"goals": [], "constraints": [], "deliverables": []}
@@ -50,7 +81,7 @@ def _collect_sections(text: str) -> Dict[str, List[str]]:
         if current and stripped:
             sections[current].append(stripped)
 
-    return {k: _extract_bullets(v) for k, v in sections.items()}
+    return {k: _extract_candidates(v) for k, v in sections.items()}
 
 
 def _infer_risk(text: str) -> str:
@@ -96,8 +127,8 @@ def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
 
     sections = _collect_sections(text)
     if not sections["goals"]:
-        # fallback to first bullets in file as implied goals
-        sections["goals"] = _extract_bullets(text.splitlines())[:5]
+        # fallback to first meaningful lines in file as implied goals
+        sections["goals"] = _extract_candidates(text.splitlines(), max_items=5)
 
     try:
         intent = BriefIntent(

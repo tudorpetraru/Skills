@@ -56,3 +56,28 @@ def test_parse_brief_supports_env_path_mapping(tmp_path: Path, monkeypatch) -> N
     diag = validate_brief_path(vm_path)
     assert diag["resolution_mode"] == "mapped_cross_environment"
     assert diag["exists"] is True
+
+
+def test_parse_brief_extracts_goals_from_prose_without_bullets(tmp_path: Path) -> None:
+    brief = tmp_path / "project_brief.md"
+    brief.write_text(
+        """
+# Project Context
+This project builds a local-first orchestration service for multi-agent workflows.
+
+# Goals
+The system should route the right skills deterministically and produce an execution plan.
+The UX should remain simple for non-technical users.
+
+# Constraints
+The runtime must work on macOS and recover from restarts safely.
+
+# Deliverables
+A desktop shell app, an MCP integration layer, and local observability views.
+""".strip(),
+        encoding="utf-8",
+    )
+    intent, _ = parse_brief(str(brief))
+    assert len(intent.goals) >= 2
+    assert len(intent.constraints) >= 1
+    assert len(intent.deliverables) >= 1

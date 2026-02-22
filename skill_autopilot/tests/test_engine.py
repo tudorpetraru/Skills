@@ -101,8 +101,30 @@ def test_reroute_material_change(tmp_path: Path) -> None:
     )
 
     _write_brief(brief, extra="\n# Constraints\n- New strict compliance policy and audit needs.")
-    rerouted = engine.reroute_if_material_change(response.project_id)
-    assert rerouted is True
+    result = engine.reroute_project(response.project_id)
+    assert result["rerouted"] is True
+    assert result["reason"] == "material_change"
+
+
+def test_reroute_non_material_with_force(tmp_path: Path) -> None:
+    brief = tmp_path / "project_brief.md"
+    _write_brief(brief)
+    engine = SkillAutopilotEngine(_make_config(tmp_path))
+    response = engine.start_project(
+        StartProjectRequest(
+            workspace_path=str(tmp_path),
+            brief_path=str(brief),
+            host_targets=["claude_desktop"],
+        )
+    )
+
+    skipped = engine.reroute_project(response.project_id, force=False)
+    assert skipped["rerouted"] is False
+    assert skipped["reason"] == "non_material_change"
+
+    forced = engine.reroute_project(response.project_id, force=True)
+    assert forced["rerouted"] is True
+    assert forced["reason"] == "forced"
 
 
 def test_end_project_deactivates_leases(tmp_path: Path) -> None:

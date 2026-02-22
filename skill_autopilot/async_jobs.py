@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
+import json
 from threading import Lock
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 from uuid import uuid4
 
@@ -10,10 +12,12 @@ from .utils import utc_now
 
 
 class AsyncJobManager:
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4, state_file: str | None = None):
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="sa-job")
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._lock = Lock()
+        self._state_file = str(Path(state_file).expanduser()) if state_file else None
+        self._load_state()
 
     def submit(self, job_type: str, fn: Callable[[], Any], project_id: str | None = None) -> str:
         job_id = str(uuid4())
@@ -29,6 +33,7 @@ class AsyncJobManager:
                 "result": None,
                 "error": None,
             }
+            self._persist_locked()
         self._executor.submit(self._run, job_id, fn)
         return job_id
 
@@ -72,6 +77,81 @@ class AsyncJobManager:
             if error is not None or status == "succeeded":
                 row["error"] = error
             row["updated_at"] = utc_now()
+            self._persist_locked()
+
+    def _load_state(self) -> None:
+        if not self._state_file:
+            return
+        path = Path(self._state_file)
+        if not path.exists():
+            return
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return
+        if not isinstance(payload, dict):
+            return
+        jobs = payload.get("jobs")
+        if not isinstance(jobs, list):
+            return
+        for item in jobs:
+            if not isinstance(item, dict):
+                continue
+            job_id = str(item.get("job_id", "")).strip()
+            if not job_id:
+                continue
+            created_at = _parse_dt(item.get("created_at")) or utc_now()
+            updated_at = _parse_dt(item.get("updated_at")) or created_at
+            status = str(item.get("status") or "unknown")
+            if status in {"queued", "running"}:
+                status = "unknown_after_restart"
+            self._jobs[job_id] = {
+                "job_id": job_id,
+                "job_type": str(item.get("job_type") or "unknown"),
+                "project_id": item.get("project_id"),
+                "status": status,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "result": item.get("result"),
+                "error": item.get("error"),
+            }
+
+    def _persist_locked(self) -> None:
+        if not self._state_file:
+            return
+        path = Path(self._state_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "jobs": [
+                {
+                    "job_id": row["job_id"],
+                    "job_type": row["job_type"],
+                    "project_id": row["project_id"],
+                    "status": row["status"],
+                    "created_at": row["created_at"].isoformat(),
+                    "updated_at": row["updated_at"].isoformat(),
+                    "result": _to_json_compatible(row["result"]),
+                    "error": row["error"],
+                }
+                for row in sorted(self._jobs.values(), key=lambda item: item["updated_at"], reverse=True)[:1000]
+            ]
+        }
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        tmp.replace(path)
+
+
+def _parse_dt(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        text = str(value).replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(text)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _to_json_compatible(value: Any) -> Any:
@@ -89,4 +169,3 @@ def _to_json_compatible(value: Any) -> Any:
     if callable(model_dump):
         return _to_json_compatible(model_dump(mode="json"))
     return str(value)
-

@@ -141,6 +141,7 @@ Arguments:
 ### `sa_reroute_project`
 Arguments:
 1. `project_id` (required).
+2. `force` (optional, default `false`): force reroute even when diff is not material.
 
 ### `sa_end_project`
 Arguments:
@@ -168,6 +169,8 @@ Arguments:
 ### `sa_task_status`
 Arguments:
 1. `project_id` (required).
+2. `task_limit` (optional, default `50`, max `500`): limits task payload for faster responses.
+3. `include_outputs` (optional, default `false`): include full per-task output payloads.
 
 ### `sa_approve_gate`
 Arguments:
