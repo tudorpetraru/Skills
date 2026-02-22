@@ -238,6 +238,75 @@ def validate_brief_path(brief_path: str) -> Dict[str, object]:
     return out
 
 
+def resolve_workspace_path(workspace_path: str) -> Dict[str, object]:
+    normalized = _normalize_path_input(workspace_path)
+    path = Path(normalized).expanduser()
+    out: Dict[str, object] = {
+        "input_path": workspace_path,
+        "normalized_input_path": normalized,
+        "resolved_path": str(path),
+        "resolution_mode": "unresolved",
+        "resolution_note": "path does not exist in MCP host filesystem",
+        "exists": False,
+        "is_dir": False,
+        "error": None,
+    }
+
+    if path.exists():
+        out.update(
+            {
+                "resolved_path": str(path),
+                "resolution_mode": "direct",
+                "resolution_note": "native path exists",
+                "exists": True,
+                "is_dir": path.is_dir(),
+            }
+        )
+        return out
+
+    sibling = _find_case_insensitive_sibling(path)
+    if sibling is not None and sibling.exists():
+        out.update(
+            {
+                "resolved_path": str(sibling),
+                "resolution_mode": "case_insensitive_sibling",
+                "resolution_note": "resolved by case-insensitive match",
+                "exists": True,
+                "is_dir": sibling.is_dir(),
+            }
+        )
+        return out
+
+    mapped = _map_cross_environment_path(path)
+    if mapped is not None:
+        mapped_path = mapped
+        if mapped_path.exists():
+            out.update(
+                {
+                    "resolved_path": str(mapped_path),
+                    "resolution_mode": "mapped_cross_environment",
+                    "resolution_note": f"mapped from {path}",
+                    "exists": True,
+                    "is_dir": mapped_path.is_dir(),
+                }
+            )
+            return out
+        mapped_sibling = _find_case_insensitive_sibling(mapped_path)
+        if mapped_sibling is not None and mapped_sibling.exists():
+            out.update(
+                {
+                    "resolved_path": str(mapped_sibling),
+                    "resolution_mode": "mapped_cross_environment",
+                    "resolution_note": f"mapped from {path} with case-insensitive match",
+                    "exists": True,
+                    "is_dir": mapped_sibling.is_dir(),
+                }
+            )
+            return out
+
+    return out
+
+
 def _resolve_brief_path(brief_path: str) -> Path:
     return _resolve_brief_path_details(brief_path)[0]
 

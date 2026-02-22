@@ -356,6 +356,23 @@ class Database:
             payload["summary_json"] = json.loads(payload["summary_json"])
             return payload
 
+    def list_running_project_runs(self, project_id: str) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM project_runs
+                WHERE project_id=? AND status='running'
+                ORDER BY started_at DESC
+                """,
+                (project_id,),
+            ).fetchall()
+            out: List[Dict[str, Any]] = []
+            for row in rows:
+                payload = dict(row)
+                payload["summary_json"] = json.loads(payload["summary_json"])
+                out.append(payload)
+            return out
+
     def insert_task_run(
         self,
         task_run_id: str,

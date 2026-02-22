@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 
 from .async_jobs import AsyncJobManager
-from .brief_parser import validate_brief_path
+from .brief_parser import resolve_workspace_path, validate_brief_path
 from .config import AppConfig, load_config
 from .engine import SkillAutopilotEngine
 from .models import ApproveGateRequest, EndProjectRequest, RunProjectRequest, StartProjectRequest
@@ -65,6 +65,7 @@ def mcp_start_project(
     plan = engine.db.get_latest_plan(response.project_id)
     project = engine.db.get_project(response.project_id) or {}
     brief_diag = validate_brief_path(project.get("brief_path", resolved_brief))
+    workspace_diag = resolve_workspace_path(project.get("workspace_path", workspace_path))
     brief_summary = (plan or {}).get("plan_json", {}).get("summary", {}) if plan else {}
     return {
         "project_id": response.project_id,
@@ -73,6 +74,7 @@ def mcp_start_project(
         "selected_skills": [item.model_dump() for item in response.selected_skills],
         "action_plan": plan["plan_json"] if plan else None,
         "brief_resolution": brief_diag,
+        "workspace_resolution": workspace_diag,
         "brief_summary": brief_summary,
         "execution": _dispatch_or_run(
             project_id=response.project_id,

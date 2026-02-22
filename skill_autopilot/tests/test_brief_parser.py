@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from skill_autopilot.brief_parser import parse_brief, validate_brief_path
+from skill_autopilot.brief_parser import parse_brief, resolve_workspace_path, validate_brief_path
 
 
 def _write_valid_brief(path: Path) -> None:
@@ -57,6 +57,11 @@ def test_parse_brief_supports_env_path_mapping(tmp_path: Path, monkeypatch) -> N
     assert diag["resolution_mode"] == "mapped_cross_environment"
     assert diag["exists"] is True
 
+    workspace_diag = resolve_workspace_path("/sessions/demo/mnt/Bloomberg")
+    assert workspace_diag["resolution_mode"] == "mapped_cross_environment"
+    assert workspace_diag["exists"] is True
+    assert workspace_diag["is_dir"] is True
+
 
 def test_parse_brief_extracts_goals_from_prose_without_bullets(tmp_path: Path) -> None:
     brief = tmp_path / "project_brief.md"
@@ -98,3 +103,11 @@ The team will package documentation artifacts for handoff.
     assert len(intent.goals) >= 1
     assert len(intent.constraints) >= 1
     assert len(intent.deliverables) >= 1
+
+
+def test_resolve_workspace_path_unresolved(tmp_path: Path) -> None:
+    missing = tmp_path / "missing_workspace_dir"
+    diag = resolve_workspace_path(str(missing))
+    assert diag["exists"] is False
+    assert diag["is_dir"] is False
+    assert diag["resolution_mode"] == "unresolved"

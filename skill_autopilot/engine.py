@@ -233,6 +233,7 @@ class SkillAutopilotEngine:
         with self._lock:
             self.db.set_project_state(request.project_id, ProjectState.CLOSING.value)
             response = self.lease_manager.deactivate_project(project_id=request.project_id, reason=request.reason.value)
+            self._finalize_running_runs_on_close(project_id=request.project_id, reason=request.reason.value)
             ended = response.status in {"closed", "partial_close"}
             state = ProjectState.CLOSED.value if ended else ProjectState.ERROR.value
             self.db.set_project_state(request.project_id, state, ended=ended)
@@ -534,6 +535,27 @@ class SkillAutopilotEngine:
     def _active_hosts(self, project_id: str) -> List[str]:
         leases = self.db.get_active_leases(project_id=project_id)
         return sorted({lease["host"] for lease in leases})
+
+    def _finalize_running_runs_on_close(self, project_id: str, reason: str) -> None:
+        running = self.db.list_running_project_runs(project_id)
+        if not running:
+            return
+        for row in running:
+            run_id = str(row.get("run_id"))
+            summary = row.get("summary_json") or {}
+            summary = dict(summary)
+            summary.setdefault("executed_tasks", 0)
+            summary.setdefault("failed_tasks", 0)
+            summary.setdefault("pending_gates", [])
+            summary["terminated_by"] = "end_project"
+            summary["termination_reason"] = reason
+            summary["finished_at"] = utc_now().isoformat()
+            self.db.update_project_run(run_id=run_id, status="failed", summary=summary, ended=True)
+            self.db.add_audit_event(
+                event_type="project.run.terminated",
+                project_id=project_id,
+                payload={"run_id": run_id, "termination_reason": reason},
+            )
 
     def _build_adapters(self, state_dir: str):
         mode = (self.config.adapter_mode or "native_cli").strip().lower()

@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List
 
+from ..brief_parser import resolve_workspace_path
 from .mock import MockDesktopAdapter
 
 
@@ -53,6 +54,7 @@ class NativeCliAdapter(MockDesktopAdapter):
         workspace_path: str,
         selected_skills: List[str],
     ) -> Dict[str, object]:
+        resolved_workspace = _resolve_workspace_for_host(workspace_path)
         prompt = _task_prompt(project_id=project_id, task=task, selected_skills=selected_skills)
         cmd = [
             self.command,
@@ -60,7 +62,7 @@ class NativeCliAdapter(MockDesktopAdapter):
             "--output-format",
             "json",
             "--add-dir",
-            workspace_path,
+            resolved_workspace,
             "--",
             prompt,
         ]
@@ -85,6 +87,7 @@ class NativeCliAdapter(MockDesktopAdapter):
         workspace_path: str,
         selected_skills: List[str],
     ) -> Dict[str, object]:
+        resolved_workspace = _resolve_workspace_for_host(workspace_path)
         prompt = _task_prompt(project_id=project_id, task=task, selected_skills=selected_skills)
         with tempfile.NamedTemporaryFile(prefix="codex_last_", suffix=".txt", delete=False) as fp:
             output_path = fp.name
@@ -94,7 +97,7 @@ class NativeCliAdapter(MockDesktopAdapter):
             "exec",
             "--skip-git-repo-check",
             "--cd",
-            workspace_path,
+            resolved_workspace,
             "--output-last-message",
             output_path,
             prompt,
@@ -131,4 +134,16 @@ def _task_prompt(project_id: str, task: Dict[str, object], selected_skills: List
         f"acceptance_checks: {json.dumps(task.get('acceptance_checks', []), ensure_ascii=True)}\n"
         f"active_skills: {json.dumps(selected_skills, ensure_ascii=True)}\n\n"
         "Respond with concise JSON object containing keys: summary, artifacts, risks."
+    )
+
+
+def _resolve_workspace_for_host(workspace_path: str) -> str:
+    diag = resolve_workspace_path(workspace_path)
+    if diag.get("exists") and diag.get("is_dir"):
+        return str(diag.get("resolved_path"))
+    note = str(diag.get("resolution_note") or "workspace path unresolved")
+    raise RuntimeError(
+        "workspace path is not accessible to host CLI: "
+        f"{workspace_path} ({note}). "
+        "If running from a VM/session path, set SKILL_AUTOPILOT_PATH_MAPS."
     )

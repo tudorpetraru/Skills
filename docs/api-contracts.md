@@ -22,8 +22,9 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 
 ## MCP Async Behavior (important)
 1. `sa_start_project` defaults to `auto_run=false`, so it returns quickly with `project_id`.
-2. If `sa_start_project` is called with `auto_run=true`, execution is dispatched async by default and returns `execution.job_id`.
-3. `sa_run_project` dispatches async by default and returns:
+2. `sa_start_project` also returns `brief_resolution` and `workspace_resolution` diagnostics for path visibility.
+3. If `sa_start_project` is called with `auto_run=true`, execution is dispatched async by default and returns `execution.job_id`.
+4. `sa_run_project` dispatches async by default and returns:
 ```json
 {
   "status": "accepted",
@@ -31,8 +32,8 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
   "project_id": "string"
 }
 ```
-4. Poll `sa_job_status(job_id)` for completion and final run result payload.
-5. Set `wait_for_completion=true` only when you explicitly want blocking behavior.
+5. Poll `sa_job_status(job_id)` for completion and final run result payload.
+6. Set `wait_for_completion=true` only when you explicitly want blocking behavior.
 
 ## MCP Observability (Claude-side monitoring)
 1. `sa_observability_overview` gives a DB-only live view of active projects with `classification=progressing|stale`.

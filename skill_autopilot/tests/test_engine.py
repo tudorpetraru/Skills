@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -145,6 +146,36 @@ def test_end_project_deactivates_leases(tmp_path: Path) -> None:
 
     status = engine.get_project_status(response.project_id)
     assert status.active_skill_count == 0
+
+
+def test_end_project_terminates_running_runs(tmp_path: Path) -> None:
+    brief = tmp_path / "project_brief.md"
+    _write_brief(brief)
+
+    engine = SkillAutopilotEngine(_make_config(tmp_path))
+    response = engine.start_project(
+        StartProjectRequest(
+            workspace_path=str(tmp_path),
+            brief_path=str(brief),
+            host_targets=["claude_desktop"],
+        )
+    )
+    route = engine.db.get_latest_route(response.project_id)
+    run_id = str(uuid4())
+    engine.db.create_project_run(
+        run_id=run_id,
+        project_id=response.project_id,
+        route_id=route["route_id"] if route else None,
+        plan_id=response.plan_id,
+    )
+
+    closed = engine.end_project(EndProjectRequest(project_id=response.project_id, reason="completed"))
+    assert closed.status in {"closed", "partial_close"}
+
+    run = engine.db.get_latest_project_run(response.project_id)
+    assert run is not None
+    assert run["status"] == "failed"
+    assert run["summary_json"].get("terminated_by") == "end_project"
 
 
 def test_route_determinism(tmp_path: Path) -> None:
