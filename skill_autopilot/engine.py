@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 import shutil
 from threading import Lock
@@ -316,6 +317,142 @@ class SkillAutopilotEngine:
             remote_worker_count=len(self.config.remote_worker_endpoints),
         )
 
+    def observability_overview(self, stale_minutes: int = 20, limit: int = 25) -> Dict[str, object]:
+        rows = self.db.list_active_projects(limit=max(1, min(limit, 200)))
+        now = utc_now()
+        items: List[Dict[str, object]] = []
+        stale_count = 0
+        progressing_count = 0
+
+        for row in rows:
+            project_id = str(row["project_id"])
+            run = self.db.get_latest_project_run(project_id)
+            last_task = self.db.get_last_task_for_project(project_id)
+            lease_count = self.db.count_active_skills(project_id)
+            leases_by_host = self.db.count_active_leases_by_host(project_id)
+
+            run_started_at = _parse_dt(run.get("started_at")) if run else None
+            run_status = str(run.get("status")) if run else "not_started"
+            last_task_at = _parse_dt(last_task.get("ended_at") or last_task.get("started_at")) if last_task else None
+            project_updated_at = _parse_dt(row.get("updated_at"))
+
+            last_activity = _max_dt(run_started_at, last_task_at, project_updated_at)
+            idle_minutes = int((now - last_activity).total_seconds() / 60) if last_activity else None
+
+            classification = "progressing"
+            reason = "active updates detected"
+            if run_status == "running":
+                if last_task_at and idle_minutes is not None and idle_minutes >= stale_minutes:
+                    classification = "stale"
+                    reason = f"run is running but no task activity for {idle_minutes} min"
+                elif not last_task_at and run_started_at:
+                    run_age = int((now - run_started_at).total_seconds() / 60)
+                    if run_age >= stale_minutes:
+                        classification = "stale"
+                        reason = f"run started {run_age} min ago with no task records"
+            else:
+                if idle_minutes is not None and idle_minutes >= stale_minutes:
+                    classification = "stale"
+                    reason = f"project active with no recent activity for {idle_minutes} min"
+
+            if classification == "stale":
+                stale_count += 1
+            else:
+                progressing_count += 1
+
+            items.append(
+                {
+                    "project_id": project_id,
+                    "workspace_path": row["workspace_path"],
+                    "state": row["state"],
+                    "run_status": run_status,
+                    "run_id": run["run_id"] if run else None,
+                    "run_started_at": run.get("started_at") if run else None,
+                    "last_task_at": (last_task.get("ended_at") or last_task.get("started_at")) if last_task else None,
+                    "last_task_id": last_task.get("task_id") if last_task else None,
+                    "last_task_status": last_task.get("status") if last_task else None,
+                    "active_skill_count": lease_count,
+                    "active_leases_by_host": leases_by_host,
+                    "idle_minutes": idle_minutes,
+                    "classification": classification,
+                    "classification_reason": reason,
+                }
+            )
+
+        return {
+            "generated_at": now.isoformat(),
+            "stale_minutes": stale_minutes,
+            "active_project_count": len(items),
+            "stale_project_count": stale_count,
+            "progressing_project_count": progressing_count,
+            "items": items,
+        }
+
+    def project_observability(self, project_id: str, task_limit: int = 20, audit_limit: int = 20) -> Dict[str, object]:
+        project = self.db.get_project(project_id)
+        if not project:
+            raise KeyError(f"project_id not found: {project_id}")
+        run = self.db.get_latest_project_run(project_id)
+        last_task = self.db.get_last_task_for_project(project_id)
+        tasks = self.db.list_recent_project_tasks(project_id, limit=max(1, min(task_limit, 200)))
+        audits = self.db.list_recent_audit_events(project_id, limit=max(1, min(audit_limit, 200)))
+        approvals = self.db.list_gate_approvals(project_id)
+        leases = self.db.get_active_leases(project_id=project_id)
+
+        return {
+            "project": project,
+            "latest_run": run,
+            "last_task": last_task,
+            "recent_tasks": [
+                {
+                    "run_id": item["run_id"],
+                    "phase": item["phase"],
+                    "task_id": item["task_id"],
+                    "status": item["status"],
+                    "agent_role": item["agent_role"],
+                    "started_at": item["started_at"],
+                    "ended_at": item["ended_at"],
+                    "error_text": item["error_text"],
+                }
+                for item in tasks
+            ],
+            "recent_audit_events": audits,
+            "approvals": approvals,
+            "active_leases": leases,
+            "active_leases_by_host": self.db.count_active_leases_by_host(project_id),
+        }
+
+    def reconcile_stale_projects(
+        self, stale_minutes: int = 20, close: bool = False, close_reason: str = "paused"
+    ) -> Dict[str, object]:
+        overview = self.observability_overview(stale_minutes=stale_minutes, limit=200)
+        stale_items = [item for item in overview["items"] if item["classification"] == "stale"]
+        closed: List[Dict[str, object]] = []
+
+        if close:
+            for item in stale_items:
+                project_id = str(item["project_id"])
+                try:
+                    response = self.end_project(EndProjectRequest(project_id=project_id, reason=close_reason))
+                    closed.append(
+                        {
+                            "project_id": project_id,
+                            "status": response.status,
+                            "deactivated_skills": response.deactivated_skills,
+                        }
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    closed.append({"project_id": project_id, "status": "error", "error": str(exc)})
+
+        return {
+            "generated_at": utc_now().isoformat(),
+            "stale_minutes": stale_minutes,
+            "stale_projects": stale_items,
+            "closed_projects": closed,
+            "close_requested": close,
+            "close_reason": close_reason,
+        }
+
     def sweep_expired(self) -> List[str]:
         expired_project_ids = self.lease_manager.sweep_expired_leases()
         for project_id in expired_project_ids:
@@ -375,3 +512,23 @@ class SkillAutopilotEngine:
             "claude_desktop": MockDesktopAdapter("claude_desktop", state_dir=state_dir),
             "codex_desktop": MockDesktopAdapter("codex_desktop", state_dir=state_dir),
         }
+
+
+def _parse_dt(value: object) -> datetime | None:
+    if not value:
+        return None
+    text = str(value).replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _max_dt(*values: datetime | None) -> datetime | None:
+    present = [item for item in values if item is not None]
+    if not present:
+        return None
+    return max(present)

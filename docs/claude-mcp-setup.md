@@ -42,6 +42,9 @@ After restart, Claude should list these MCP tools:
 11. `sa_validate_brief_path`
 12. `sa_job_status`
 13. `sa_jobs_recent`
+14. `sa_observability_overview`
+15. `sa_project_observability`
+16. `sa_reconcile_stale_projects`
 
 ## 4) Example usage in Claude
 1. Call `sa_start_project` with `workspace_path` and optional `brief_path`.
@@ -51,6 +54,9 @@ After restart, Claude should list these MCP tools:
 5. If blocked on a gate, call `sa_approve_gate`, then `sa_run_project` again.
 6. Call `sa_end_project` when done.
 7. If a brief path fails, call `sa_validate_brief_path` for resolution diagnostics.
+8. Use `sa_observability_overview` to monitor live projects and detect stale runs.
+9. Use `sa_project_observability` for detailed diagnostics on one project.
+10. If stale projects accumulate, call `sa_reconcile_stale_projects` with `close=true`.
 
 ## Notes
 - Skill routing now excludes `.system*` skills by default.

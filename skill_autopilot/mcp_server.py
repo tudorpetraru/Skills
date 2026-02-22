@@ -146,6 +146,26 @@ def mcp_task_status(project_id: str) -> Dict[str, Any]:
     return engine.task_status(project_id).model_dump(mode="json")
 
 
+@mcp.tool(name="sa_observability_overview", description="Return live health view of active projects with stale/progressing classification")
+def mcp_observability_overview(stale_minutes: int = 20, limit: int = 25) -> Dict[str, Any]:
+    engine = _get_engine()
+    return engine.observability_overview(stale_minutes=stale_minutes, limit=limit)
+
+
+@mcp.tool(name="sa_project_observability", description="Return detailed observability snapshot for one project")
+def mcp_project_observability(project_id: str, task_limit: int = 20, audit_limit: int = 20) -> Dict[str, Any]:
+    engine = _get_engine()
+    return engine.project_observability(project_id=project_id, task_limit=task_limit, audit_limit=audit_limit)
+
+
+@mcp.tool(name="sa_reconcile_stale_projects", description="Detect stale projects and optionally close them safely")
+def mcp_reconcile_stale_projects(
+    stale_minutes: int = 20, close: bool = False, close_reason: str = "paused"
+) -> Dict[str, Any]:
+    engine = _get_engine()
+    return engine.reconcile_stale_projects(stale_minutes=stale_minutes, close=close, close_reason=close_reason)
+
+
 @mcp.tool(name="sa_approve_gate", description="Approve a blocked gate so execution can continue")
 def mcp_approve_gate(project_id: str, gate_id: str, approved_by: str = "human", note: str = "") -> Dict[str, Any]:
     engine = _get_engine()
@@ -201,6 +221,31 @@ def resource_policy() -> str:
         f"max_utility_skills={config.max_utility_skills}\n"
         f"max_skills_per_cluster={config.max_skills_per_cluster}\n"
     )
+
+
+@mcp.resource(
+    "skill-autopilot://observability",
+    name="live-observability",
+    description="Live summary of active projects and run progress/staleness",
+)
+def resource_observability() -> str:
+    engine = _get_engine()
+    data = engine.observability_overview(stale_minutes=20, limit=50)
+    lines: List[str] = []
+    lines.append("Skill Autopilot Live Observability")
+    lines.append(
+        f"generated_at={data['generated_at']} active={data['active_project_count']} "
+        f"progressing={data['progressing_project_count']} stale={data['stale_project_count']}"
+    )
+    lines.append("")
+    lines.append("project_id | run_status | idle_min | classification | active_skills | workspace")
+    lines.append("--- | --- | --- | --- | --- | ---")
+    for item in data["items"]:
+        lines.append(
+            f"{item['project_id']} | {item['run_status']} | {item['idle_minutes']} | "
+            f"{item['classification']} | {item['active_skill_count']} | {item['workspace_path']}"
+        )
+    return "\n".join(lines)
 
 
 def _dispatch_or_run(project_id: str, auto_approve_gates: bool, wait_for_completion: bool) -> Dict[str, Any]:

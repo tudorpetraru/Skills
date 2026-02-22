@@ -16,6 +16,9 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 11. `sa_validate_brief_path`
 12. `sa_job_status`
 13. `sa_jobs_recent`
+14. `sa_observability_overview`
+15. `sa_project_observability`
+16. `sa_reconcile_stale_projects`
 
 ## MCP Async Behavior (important)
 1. `sa_start_project` defaults to `auto_run=false`, so it returns quickly with `project_id`.
@@ -30,6 +33,12 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 ```
 4. Poll `sa_job_status(job_id)` for completion and final run result payload.
 5. Set `wait_for_completion=true` only when you explicitly want blocking behavior.
+
+## MCP Observability (Claude-side monitoring)
+1. `sa_observability_overview` gives a DB-only live view of active projects with `classification=progressing|stale`.
+2. `sa_project_observability` drills into one project (latest run, recent tasks, approvals, audit events, leases).
+3. `sa_reconcile_stale_projects` can optionally close stale projects (`close=true`) with a safe reason (`paused` default).
+4. Resource `skill-autopilot://observability` exposes a lightweight table for quick in-app visibility.
 
 ## POST /start-project
 Starts or reactivates a project from a workspace brief.

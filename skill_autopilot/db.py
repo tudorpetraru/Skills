@@ -164,6 +164,14 @@ class Database:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def list_active_projects(self, limit: int = 100) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM projects WHERE state='active' ORDER BY updated_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def insert_route(
         self,
         route_id: str,
@@ -392,6 +400,41 @@ class Database:
                 out.append(payload)
             return out
 
+    def get_last_task_for_project(self, project_id: str) -> Optional[Dict[str, Any]]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM task_runs
+                WHERE project_id=?
+                ORDER BY COALESCE(ended_at, started_at) DESC
+                LIMIT 1
+                """,
+                (project_id,),
+            ).fetchone()
+            if not row:
+                return None
+            payload = dict(row)
+            payload["output_json"] = json.loads(payload["output_json"])
+            return payload
+
+    def list_recent_project_tasks(self, project_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM task_runs
+                WHERE project_id=?
+                ORDER BY COALESCE(ended_at, started_at) DESC
+                LIMIT ?
+                """,
+                (project_id, limit),
+            ).fetchall()
+            out: List[Dict[str, Any]] = []
+            for row in rows:
+                payload = dict(row)
+                payload["output_json"] = json.loads(payload["output_json"])
+                out.append(payload)
+            return out
+
     def upsert_gate_approval(self, project_id: str, gate_id: str, approved_by: str, note: str) -> None:
         now = utc_now().isoformat()
         with self._connect() as conn:
@@ -422,3 +465,36 @@ class Database:
                 (project_id,),
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def count_active_leases_by_host(self, project_id: str) -> Dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT host, COUNT(*) AS c
+                FROM leases
+                WHERE project_id=? AND status='active'
+                GROUP BY host
+                ORDER BY host ASC
+                """,
+                (project_id,),
+            ).fetchall()
+            return {str(row["host"]): int(row["c"]) for row in rows}
+
+    def list_recent_audit_events(self, project_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT event_id, project_id, route_id, event_type, payload_json, created_at
+                FROM audit_events
+                WHERE project_id=?
+                ORDER BY event_id DESC
+                LIMIT ?
+                """,
+                (project_id, limit),
+            ).fetchall()
+            out: List[Dict[str, Any]] = []
+            for row in rows:
+                payload = dict(row)
+                payload["payload_json"] = json.loads(payload["payload_json"])
+                out.append(payload)
+            return out
