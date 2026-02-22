@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
+from .brief_parser import validate_brief_path
 from .config import AppConfig, load_config
 from .engine import SkillAutopilotEngine
 from .models import ApproveGateRequest, EndProjectRequest, RunProjectRequest, StartProjectRequest
@@ -113,6 +114,17 @@ def mcp_active_plan(project_id: str) -> Dict[str, Any]:
 def mcp_service_health() -> Dict[str, Any]:
     engine = _get_engine()
     return engine.health().model_dump(mode="json")
+
+
+@mcp.tool(name="sa_validate_brief_path", description="Validate and diagnose project brief path resolution and readability")
+def mcp_validate_brief_path(workspace_path: str = "", brief_path: Optional[str] = None) -> Dict[str, Any]:
+    if brief_path:
+        candidate = brief_path
+    elif workspace_path:
+        candidate = str(Path(workspace_path) / "project_brief.md")
+    else:
+        return {"result": {"error": "Provide brief_path or workspace_path"}}
+    return {"result": validate_brief_path(candidate)}
 
 
 @mcp.tool(name="sa_run_project", description="Execute the latest action plan for a project via orchestrator runtime")

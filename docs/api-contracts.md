@@ -13,6 +13,7 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 8. `sa_run_project`
 9. `sa_task_status`
 10. `sa_approve_gate`
+11. `sa_validate_brief_path`
 
 ## POST /start-project
 Starts or reactivates a project from a workspace brief.

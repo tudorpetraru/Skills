@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Dict, List, Tuple
+from urllib.parse import unquote, urlparse
 
 from .models import BriefIntent
 from .utils import canonical_json, sha256_hex
@@ -73,11 +74,23 @@ def _infer_evidence(text: str) -> str:
 
 
 def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
-    path = Path(brief_path)
-    if not path.exists():
-        raise BriefValidationError(f"Brief file not found: {brief_path}")
+    if not str(brief_path).strip():
+        raise BriefValidationError("brief_path is required")
+    path = _resolve_brief_path(brief_path)
+    try:
+        text = path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError as exc:
+        raise BriefValidationError(f"Brief file not found: {path}") from exc
+    except IsADirectoryError as exc:
+        raise BriefValidationError(f"Brief path points to a directory, not a file: {path}") from exc
+    except PermissionError as exc:
+        raise BriefValidationError(
+            f"Brief path is not readable due to permissions: {path}. "
+            "Grant file access to this runtime or move the brief to an accessible folder."
+        ) from exc
+    except OSError as exc:
+        raise BriefValidationError(f"Unable to read brief path: {path}. Error: {exc}") from exc
 
-    text = path.read_text(encoding="utf-8").strip()
     if not text:
         raise BriefValidationError("project_brief.md is empty")
 
@@ -100,6 +113,65 @@ def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
 
     intent_hash = sha256_hex(canonical_json(intent.model_dump()))
     return intent, intent_hash
+
+
+def validate_brief_path(brief_path: str) -> Dict[str, object]:
+    normalized = _normalize_path_input(brief_path)
+    path = _resolve_brief_path(brief_path)
+    out: Dict[str, object] = {
+        "input_path": brief_path,
+        "normalized_input_path": normalized,
+        "resolved_path": str(path),
+        "exists": False,
+        "is_file": False,
+        "readable": False,
+        "size_bytes": None,
+        "error": None,
+    }
+    try:
+        out["exists"] = path.exists()
+        out["is_file"] = path.is_file()
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            out["readable"] = True
+            out["size_bytes"] = len(text.encode("utf-8"))
+        else:
+            out["error"] = "Path is not a file"
+    except PermissionError as exc:
+        out["error"] = f"PermissionError: {exc}"
+    except OSError as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    return out
+
+
+def _resolve_brief_path(brief_path: str) -> Path:
+    path = Path(_normalize_path_input(brief_path)).expanduser()
+    if path.is_dir():
+        path = path / "project_brief.md"
+    if path.exists():
+        return path
+    parent = path.parent
+    if parent.exists() and parent.is_dir():
+        target = path.name.lower()
+        for child in parent.iterdir():
+            if child.name.lower() == target:
+                return child
+    return path
+
+
+def _normalize_path_input(brief_path: str) -> str:
+    cleaned = str(brief_path).strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+        cleaned = cleaned[1:-1].strip()
+    if cleaned.startswith("file://"):
+        parsed = urlparse(cleaned)
+        if parsed.scheme == "file":
+            decoded = unquote(parsed.path or "")
+            if parsed.netloc and parsed.netloc != "localhost":
+                decoded = f"//{parsed.netloc}{decoded}"
+            if decoded:
+                cleaned = decoded
+    return cleaned
 
 
 def is_material_change(previous_intent: BriefIntent, new_intent: BriefIntent) -> bool:

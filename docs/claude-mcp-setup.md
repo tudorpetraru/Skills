@@ -45,12 +45,14 @@ After restart, Claude can call these MCP tools:
 8. `sa_run_project`
 9. `sa_task_status`
 10. `sa_approve_gate`
+11. `sa_validate_brief_path`
 
 ## 4) Example usage inside Claude
 1. Call `sa_start_project` with `workspace_path` and optional `brief_path` (it auto-runs execution by default).
 2. Call `sa_task_status` to inspect task-level execution results.
 3. If blocked on a gate, call `sa_approve_gate`, then `sa_run_project`.
 4. Call `sa_end_project` when done.
+5. If a brief path fails, call `sa_validate_brief_path` first to see resolved path and read/permission diagnostics.
 
 ## Notes
 - Skill routing now excludes `.system*` skills by default.

@@ -36,7 +36,7 @@ See `docs/api-contracts.md`.
 ## Claude MCP
 1. Install with Python 3.11+.
 2. Point Claude desktop to `skill-autopilot-mcp --transport stdio`.
-3. Use MCP tools: `sa_start_project`, `sa_run_project`, `sa_task_status`, `sa_approve_gate`, `sa_end_project`.
+3. Use MCP tools: `sa_start_project`, `sa_run_project`, `sa_task_status`, `sa_approve_gate`, `sa_end_project`, `sa_validate_brief_path`.
 
 See `docs/claude-mcp-setup.md` for exact config.
 
