@@ -50,6 +50,11 @@ Optional: auto-write Claude MCP config during install.
 3. Penalizes utility-only skills unless requested (`pdf`, `playwright`, `screenshot`).
 4. Caps utility and per-cluster selection density.
 
+## MCP execution model
+1. `sa_start_project` returns project metadata immediately (does not auto-run by default).
+2. `sa_run_project` is async by default and returns `job_id`.
+3. Poll `sa_job_status` and `sa_task_status` for completion/results.
+
 ## Tests
 ```bash
 python3 -m venv .venv

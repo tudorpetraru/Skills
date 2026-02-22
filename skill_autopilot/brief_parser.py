@@ -76,7 +76,7 @@ def _infer_evidence(text: str) -> str:
 def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
     if not str(brief_path).strip():
         raise BriefValidationError("brief_path is required")
-    path = _resolve_brief_path(brief_path)
+    path, _, _ = _resolve_brief_path_details(brief_path)
     try:
         text = path.read_text(encoding="utf-8").strip()
     except FileNotFoundError as exc:
@@ -117,11 +117,13 @@ def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
 
 def validate_brief_path(brief_path: str) -> Dict[str, object]:
     normalized = _normalize_path_input(brief_path)
-    path = _resolve_brief_path(brief_path)
+    path, resolution_mode, resolution_note = _resolve_brief_path_details(brief_path)
     out: Dict[str, object] = {
         "input_path": brief_path,
         "normalized_input_path": normalized,
         "resolved_path": str(path),
+        "resolution_mode": resolution_mode,
+        "resolution_note": resolution_note,
         "exists": False,
         "is_file": False,
         "readable": False,
@@ -145,18 +147,32 @@ def validate_brief_path(brief_path: str) -> Dict[str, object]:
 
 
 def _resolve_brief_path(brief_path: str) -> Path:
+    return _resolve_brief_path_details(brief_path)[0]
+
+
+def _resolve_brief_path_details(brief_path: str) -> Tuple[Path, str, str]:
     path = Path(_normalize_path_input(brief_path)).expanduser()
     if path.is_dir():
         path = path / "project_brief.md"
     if path.exists():
-        return path
-    parent = path.parent
-    if parent.exists() and parent.is_dir():
-        target = path.name.lower()
-        for child in parent.iterdir():
-            if child.name.lower() == target:
-                return child
-    return path
+        return path, "direct", "native path exists"
+
+    sibling = _find_case_insensitive_sibling(path)
+    if sibling is not None:
+        return sibling, "case_insensitive_sibling", "resolved by case-insensitive filename match"
+
+    mapped = _map_cross_environment_path(path)
+    if mapped is not None:
+        mapped_path = mapped
+        if mapped_path.is_dir():
+            mapped_path = mapped_path / "project_brief.md"
+        if mapped_path.exists():
+            return mapped_path, "mapped_cross_environment", f"mapped from {path}"
+        mapped_sibling = _find_case_insensitive_sibling(mapped_path)
+        if mapped_sibling is not None:
+            return mapped_sibling, "mapped_cross_environment", f"mapped from {path} with case-insensitive match"
+
+    return path, "unresolved", "path does not exist in MCP host filesystem"
 
 
 def _normalize_path_input(brief_path: str) -> str:
@@ -172,6 +188,86 @@ def _normalize_path_input(brief_path: str) -> str:
             if decoded:
                 cleaned = decoded
     return cleaned
+
+
+def _find_case_insensitive_sibling(path: Path) -> Path | None:
+    parent = path.parent
+    if parent.exists() and parent.is_dir():
+        target = path.name.lower()
+        for child in parent.iterdir():
+            if child.name.lower() == target:
+                return child
+    return None
+
+
+def _map_cross_environment_path(path: Path) -> Path | None:
+    from_env = _map_using_env_aliases(path)
+    if from_env is not None:
+        return from_env
+    return _map_from_vm_mount(path)
+
+
+def _map_using_env_aliases(path: Path) -> Path | None:
+    # Format: SKILL_AUTOPILOT_PATH_MAPS="/sessions/abc/mnt=/Users/name/Documents/AI;/mnt=/Users/name/Documents"
+    import os
+
+    raw = os.getenv("SKILL_AUTOPILOT_PATH_MAPS", "").strip()
+    if not raw:
+        return None
+    source_path = path.as_posix()
+    for item in re.split(r"[;,]", raw):
+        if "=" not in item:
+            continue
+        src, dst = item.split("=", 1)
+        src = src.strip().rstrip("/")
+        dst = dst.strip().rstrip("/")
+        if not src or not dst:
+            continue
+        if source_path == src or source_path.startswith(src + "/"):
+            suffix = source_path[len(src) :].lstrip("/")
+            mapped = Path(dst)
+            if suffix:
+                mapped = mapped / suffix
+            return mapped.expanduser()
+    return None
+
+
+def _map_from_vm_mount(path: Path) -> Path | None:
+    as_posix = path.as_posix()
+    if "/mnt/" not in as_posix:
+        return None
+    tail = as_posix.split("/mnt/", 1)[1].lstrip("/")
+    if not tail:
+        return None
+    tail_path = Path(tail)
+
+    home = Path.home()
+    roots = [home / "Documents", home / "Desktop", home / "Downloads"]
+    for root in roots:
+        for prefix in ["", "AI", "Projects", "Workspaces"]:
+            candidate = (root / prefix / tail_path) if prefix else (root / tail_path)
+            if candidate.exists():
+                return candidate
+
+    # Fallback: bounded suffix search under common roots.
+    filename = tail_path.name
+    if not filename:
+        return None
+    suffix_parts = tail_path.parts
+    for root in roots:
+        if not root.exists():
+            continue
+        seen = 0
+        for match in root.rglob(filename):
+            seen += 1
+            if seen > 500:
+                break
+            parts = match.parts
+            if len(parts) >= len(suffix_parts) and tuple(parts[-len(suffix_parts) :]) == tuple(suffix_parts):
+                return match
+            if len(suffix_parts) >= 2 and len(parts) >= 2 and tuple(parts[-2:]) == tuple(suffix_parts[-2:]):
+                return match
+    return None
 
 
 def is_material_change(previous_intent: BriefIntent, new_intent: BriefIntent) -> bool:

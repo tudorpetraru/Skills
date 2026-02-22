@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
+from .async_jobs import AsyncJobManager
 from .brief_parser import validate_brief_path
 from .config import AppConfig, load_config
 from .engine import SkillAutopilotEngine
@@ -19,6 +20,7 @@ SERVER_INSTRUCTIONS = (
 
 mcp = FastMCP(name=SERVER_NAME, instructions=SERVER_INSTRUCTIONS, log_level="WARNING")
 _engine: SkillAutopilotEngine | None = None
+_jobs = AsyncJobManager(max_workers=6)
 
 
 def _make_engine(config_path: Optional[str] = None) -> SkillAutopilotEngine:
@@ -38,8 +40,9 @@ def mcp_start_project(
     workspace_path: str,
     brief_path: Optional[str] = None,
     host_targets: Optional[List[str]] = None,
-    auto_run: bool = True,
+    auto_run: bool = False,
     auto_approve_gates: bool = True,
+    wait_for_run_completion: bool = False,
 ) -> Dict[str, Any]:
     engine = _get_engine()
     resolved_brief = brief_path or str(Path(workspace_path) / "project_brief.md")
@@ -51,18 +54,19 @@ def mcp_start_project(
         )
     )
     plan = engine.db.get_latest_plan(response.project_id)
-    run_result = None
-    if auto_run:
-        run_result = engine.run_project(
-            RunProjectRequest(project_id=response.project_id, auto_approve_gates=auto_approve_gates)
-        )
     return {
         "project_id": response.project_id,
         "status": response.status,
         "plan_id": response.plan_id,
         "selected_skills": [item.model_dump() for item in response.selected_skills],
         "action_plan": plan["plan_json"] if plan else None,
-        "execution": run_result.model_dump(mode="json") if run_result else None,
+        "execution": _dispatch_or_run(
+            project_id=response.project_id,
+            auto_approve_gates=auto_approve_gates,
+            wait_for_completion=wait_for_run_completion,
+        )
+        if auto_run
+        else None,
     }
 
 
@@ -128,10 +132,12 @@ def mcp_validate_brief_path(workspace_path: str = "", brief_path: Optional[str] 
 
 
 @mcp.tool(name="sa_run_project", description="Execute the latest action plan for a project via orchestrator runtime")
-def mcp_run_project(project_id: str, auto_approve_gates: bool = True) -> Dict[str, Any]:
-    engine = _get_engine()
-    result = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
-    return result.model_dump(mode="json")
+def mcp_run_project(project_id: str, auto_approve_gates: bool = True, wait_for_completion: bool = False) -> Dict[str, Any]:
+    return _dispatch_or_run(
+        project_id=project_id,
+        auto_approve_gates=auto_approve_gates,
+        wait_for_completion=wait_for_completion,
+    )
 
 
 @mcp.tool(name="sa_task_status", description="Return latest execution run status and per-task outcomes")
@@ -149,6 +155,41 @@ def mcp_approve_gate(project_id: str, gate_id: str, approved_by: str = "human", 
     return result.model_dump(mode="json")
 
 
+@mcp.tool(name="sa_job_status", description="Poll background MCP job status for async start/run operations")
+def mcp_job_status(job_id: str) -> Dict[str, Any]:
+    row = _jobs.get(job_id)
+    if row is None:
+        return {"job_id": job_id, "status": "not_found"}
+    return {
+        "job_id": row["job_id"],
+        "job_type": row["job_type"],
+        "project_id": row["project_id"],
+        "status": row["status"],
+        "created_at": row["created_at"].isoformat(),
+        "updated_at": row["updated_at"].isoformat(),
+        "result": row["result"],
+        "error": row["error"],
+    }
+
+
+@mcp.tool(name="sa_jobs_recent", description="List recent async MCP jobs for debugging")
+def mcp_jobs_recent(limit: int = 20) -> Dict[str, Any]:
+    items = []
+    for row in _jobs.list_recent(limit=limit):
+        items.append(
+            {
+                "job_id": row["job_id"],
+                "job_type": row["job_type"],
+                "project_id": row["project_id"],
+                "status": row["status"],
+                "created_at": row["created_at"].isoformat(),
+                "updated_at": row["updated_at"].isoformat(),
+                "error": row["error"],
+            }
+        )
+    return {"items": items}
+
+
 @mcp.resource("skill-autopilot://policy", name="routing-policy", description="Current effective local routing policy")
 def resource_policy() -> str:
     engine = _get_engine()
@@ -160,6 +201,20 @@ def resource_policy() -> str:
         f"max_utility_skills={config.max_utility_skills}\n"
         f"max_skills_per_cluster={config.max_skills_per_cluster}\n"
     )
+
+
+def _dispatch_or_run(project_id: str, auto_approve_gates: bool, wait_for_completion: bool) -> Dict[str, Any]:
+    engine = _get_engine()
+    if wait_for_completion:
+        result = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
+        return result.model_dump(mode="json")
+
+    def _work() -> Dict[str, Any]:
+        out = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
+        return out.model_dump(mode="json")
+
+    job_id = _jobs.submit(job_type="run_project", fn=_work, project_id=project_id)
+    return {"status": "accepted", "job_id": job_id, "project_id": project_id}
 
 
 def parse_args() -> argparse.Namespace:

@@ -40,3 +40,19 @@ def test_validate_brief_path_accepts_workspace_directory(tmp_path: Path) -> None
     assert result["is_file"] is True
     assert result["readable"] is True
 
+
+def test_parse_brief_supports_env_path_mapping(tmp_path: Path, monkeypatch) -> None:
+    mount_root = tmp_path / "host_mount"
+    workspace = mount_root / "Bloomberg"
+    workspace.mkdir(parents=True)
+    brief = workspace / "project_brief.md"
+    _write_valid_brief(brief)
+
+    vm_path = "/sessions/demo/mnt/Bloomberg/project_brief.md"
+    monkeypatch.setenv("SKILL_AUTOPILOT_PATH_MAPS", f"/sessions/demo/mnt={mount_root}")
+    intent, _ = parse_brief(vm_path)
+    assert intent.goals
+
+    diag = validate_brief_path(vm_path)
+    assert diag["resolution_mode"] == "mapped_cross_environment"
+    assert diag["exists"] is True

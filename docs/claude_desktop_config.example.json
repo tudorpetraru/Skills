@@ -6,7 +6,9 @@
         "--transport",
         "stdio"
       ],
-      "env": {}
+      "env": {
+        "SKILL_AUTOPILOT_PATH_MAPS": "/sessions/<vm-id>/mnt=/Users/<your-user>/Documents/AI"
+      }
     }
   }
 }

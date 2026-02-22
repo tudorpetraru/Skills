@@ -18,8 +18,10 @@
 1. Use MCP diagnostic tool:
 `sa_validate_brief_path`.
 2. Confirm response fields:
-`resolved_path`, `exists`, `is_file`, `readable`.
+`resolved_path`, `resolution_mode`, `exists`, `is_file`, `readable`.
 3. If `readable=false`, grant file access to Claude and restart.
+4. If calling from a VM path namespace, define path mapping in MCP env:
+`SKILL_AUTOPILOT_PATH_MAPS="/sessions/<id>/mnt=/Users/<you>/Documents/AI"`.
 
 ## Permission error under `Documents`
 Some macOS privacy settings block app sandboxes from reading certain paths.

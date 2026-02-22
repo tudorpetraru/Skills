@@ -14,6 +14,22 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 9. `sa_task_status`
 10. `sa_approve_gate`
 11. `sa_validate_brief_path`
+12. `sa_job_status`
+13. `sa_jobs_recent`
+
+## MCP Async Behavior (important)
+1. `sa_start_project` defaults to `auto_run=false`, so it returns quickly with `project_id`.
+2. If `sa_start_project` is called with `auto_run=true`, execution is dispatched async by default and returns `execution.job_id`.
+3. `sa_run_project` dispatches async by default and returns:
+```json
+{
+  "status": "accepted",
+  "job_id": "string",
+  "project_id": "string"
+}
+```
+4. Poll `sa_job_status(job_id)` for completion and final run result payload.
+5. Set `wait_for_completion=true` only when you explicitly want blocking behavior.
 
 ## POST /start-project
 Starts or reactivates a project from a workspace brief.
