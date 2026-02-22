@@ -22,11 +22,14 @@ Primary UX:
 4. Penalize and cap utility-only skills unless explicitly requested.
 5. Show selected skills and selection reasons.
 6. Produce a phase-based action plan.
-7. Re-route when the brief changes materially during active projects.
-8. Deactivate all project skills on `End Project`.
-9. Persist project state, routes, leases, and audit events locally.
-10. Expose lifecycle operations through MCP for Claude integration.
-11. Support user modes:
+7. Execute tasks through orchestrator runtime with task-level state persistence.
+8. Support gate approvals to continue blocked runs.
+9. Re-route when the brief changes materially during active projects.
+10. Deactivate all project skills on `End Project`.
+11. Persist project state, routes, leases, runs, task outputs, and audit events locally.
+12. Expose lifecycle and execution operations through MCP for Claude integration.
+13. Support distributed workers (local + optional remote endpoints).
+14. Support user modes:
 1. Standard mode: no policy/catalog editing.
 2. Admin mode: policy and catalog management enabled.
 

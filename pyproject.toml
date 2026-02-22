@@ -23,6 +23,7 @@ dev = [
 skill-autopilot-service = "skill_autopilot.service:main"
 skill-autopilot-ui = "skill_autopilot.desktop:main"
 skill-autopilot-mcp = "skill_autopilot.mcp_server:main"
+skill-autopilot-worker = "skill_autopilot.worker_node:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

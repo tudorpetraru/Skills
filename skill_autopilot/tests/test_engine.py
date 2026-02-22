@@ -23,6 +23,8 @@ def _make_config(tmp_path: Path) -> AppConfig:
         db_path=str(tmp_path / "state.db"),
         lease_ttl_hours=1,
         max_active_skills=8,
+        adapter_mode="mock",
+        worker_pool_size=2,
         allowlisted_catalogs=[CatalogSource(name="workspace", path=str(tmp_path), pinned_ref="test")],
     )
 

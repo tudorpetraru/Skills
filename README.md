@@ -10,6 +10,8 @@ A local-first desktop prototype that automatically routes project skills for Cla
 5. SQLite-backed lifecycle and audit history.
 6. Auto reroute on material brief changes.
 7. MCP server for Claude/Codex integration (`skill-autopilot-mcp`).
+8. Native CLI execution adapters (`claude` and `codex`) with orchestrator task runtime.
+9. Distributed worker pool with optional remote worker nodes.
 
 ## Quick start
 ```bash
@@ -52,6 +54,13 @@ See `docs/claude-mcp-setup.md` for exact config.
 ## Capability Clarity
 1. Current capability matrix (fully available vs limited vs not implemented) is documented at:
 `/Users/tudor/Documents/AI/Skills/docs/capability-matrix.md`.
+
+## Execution and workers
+1. Default adapter mode is `native_cli` (uses installed `claude` and `codex` CLIs).
+2. Worker pool runs concurrent task execution (`worker_pool_size` in config).
+3. Optional remote workers can be added via `remote_worker_endpoints` in config.
+4. Start a worker node with:
+`skill-autopilot-worker --host 127.0.0.1 --port 8790 --mode native_cli`
 
 ## Tests
 ```bash

@@ -15,10 +15,14 @@
 3. Host Adapters:
 1. `claude_desktop` adapter.
 2. `codex_desktop` adapter.
-3. Local mock activation/deactivation hooks for phase-1 prototype.
+3. Native CLI execution adapters using installed host CLIs.
 4. MCP Integration Server:
 1. `skill-autopilot-mcp` tool server over stdio/SSE/streamable-http.
 2. Exposes project lifecycle tools for Claude/Codex MCP clients.
+5. Distributed Worker Pool:
+1. Role-based host routing (orchestrator/research/quality/delivery).
+2. Concurrent phase execution with configurable worker count.
+3. Optional remote worker endpoints for horizontal scaling.
 4. State Store (SQLite):
 1. Projects.
 2. Routes.
@@ -39,9 +43,10 @@
 4. Router scores and composes compatible skill set.
 5. Lease manager activates selected skills on target hosts.
 6. Decomposer builds phase-oriented action plan.
-7. State and audit events are persisted.
-8. Watcher monitors brief for material changes and reroutes when needed.
-9. User clicks `End Project`, leases are deactivated and project is closed.
+7. Worker pool executes tasks through native host adapters.
+8. State, task runs, and audit events are persisted.
+9. Watcher monitors brief for material changes and reroutes when needed.
+10. User clicks `End Project`, leases are deactivated and project is closed.
 
 ## Data Model
 - `projects`: lifecycle state and workspace metadata.
@@ -49,6 +54,9 @@
 - `plans`: generated action plans.
 - `leases`: per-skill per-host activations with expiry.
 - `audit_events`: append-only lifecycle and policy events.
+- `project_runs`: orchestrator execution runs.
+- `task_runs`: per-task execution records (status/output/error).
+- `gate_approvals`: gate approval state for blocked runs.
 
 ## Determinism Strategy
 1. Canonical JSON serialization with sorted keys.
@@ -65,6 +73,9 @@
 6. Utility skills are penalized/capped unless explicitly requested in brief text.
 
 ## Known Prototype Constraints
-1. Desktop host adapters are local mock integrations in this version.
+1. Native host execution currently uses official CLIs, not private desktop SDK APIs.
 2. Installer packaging is documented but not bundled as a signed installer.
 3. UI is intentionally minimal and local-only.
+7. Worker Node Service:
+1. Optional standalone worker process (`skill-autopilot-worker`) exposing `/execute`.
+2. Enables distributed execution across multiple processes/machines.

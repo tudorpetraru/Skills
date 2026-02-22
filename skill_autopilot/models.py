@@ -129,6 +129,9 @@ class HealthResponse(BaseModel):
     service_time: datetime
     last_snapshot_hash: Optional[str] = None
     user_mode: Literal["standard", "admin"] = "standard"
+    adapter_mode: str = "mock"
+    worker_pool_size: int = 0
+    remote_worker_count: int = 0
 
 
 class HistoryEntry(BaseModel):

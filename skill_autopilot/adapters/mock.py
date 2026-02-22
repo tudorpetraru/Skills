@@ -49,3 +49,21 @@ class MockDesktopAdapter(HostAdapter):
         if not self.state_file.exists():
             return []
         return [line.strip() for line in self.state_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    def execute_task(
+        self,
+        project_id: str,
+        task: Dict[str, object],
+        workspace_path: str,
+        selected_skills: List[str],
+    ) -> Dict[str, object]:
+        title = str(task.get("title", "Task"))
+        return {
+            "project_id": project_id,
+            "host": self.host,
+            "mode": "mock",
+            "title": title,
+            "workspace_path": workspace_path,
+            "selected_skill_count": len(selected_skills),
+            "result": f"Mock execution completed for: {title}",
+        }

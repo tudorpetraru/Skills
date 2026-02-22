@@ -10,7 +10,7 @@ except ModuleNotFoundError:  # pragma: no cover
         tomllib = None  # type: ignore
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 
 DEFAULT_HOME = Path.home() / ".project-skill-router"
@@ -39,6 +39,17 @@ class AppConfig:
     utility_penalty: float = 0.35
     preferred_sources: List[str] = field(default_factory=lambda: ["local_library"])
     preferred_source_bonus: float = 0.08
+    adapter_mode: str = "native_cli"
+    worker_pool_size: int = 6
+    role_host_map: Dict[str, str] = field(
+        default_factory=lambda: {
+            "orchestrator": "claude_desktop",
+            "research": "claude_desktop",
+            "quality": "codex_desktop",
+            "delivery": "codex_desktop",
+        }
+    )
+    remote_worker_endpoints: List[str] = field(default_factory=list)
     admin_mode: bool = False
     allowlisted_catalogs: List[CatalogSource] = field(default_factory=list)
 
@@ -69,6 +80,10 @@ def ensure_default_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Path:
         'utility_penalty = 0.35',
         'preferred_sources = "local_library"',
         'preferred_source_bonus = 0.08',
+        'adapter_mode = "native_cli"',
+        'worker_pool_size = 6',
+        'role_host_map = "orchestrator:claude_desktop,research:claude_desktop,quality:codex_desktop,delivery:codex_desktop"',
+        'remote_worker_endpoints = ""',
         'admin_mode = false',
         '',
     ]
@@ -121,6 +136,10 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         utility_penalty=float(policy.get("utility_penalty", 0.35)),
         preferred_sources=_split_csv_str(policy.get("preferred_sources", "local_library")),
         preferred_source_bonus=float(policy.get("preferred_source_bonus", 0.08)),
+        adapter_mode=str(policy.get("adapter_mode", "native_cli")),
+        worker_pool_size=int(policy.get("worker_pool_size", 6)),
+        role_host_map=_parse_role_host_map(policy.get("role_host_map", "orchestrator:claude_desktop,research:claude_desktop,quality:codex_desktop,delivery:codex_desktop")),
+        remote_worker_endpoints=_split_csv_str(policy.get("remote_worker_endpoints", "")),
         admin_mode=bool(policy.get("admin_mode", False)),
         allowlisted_catalogs=catalogs,
     )
@@ -188,3 +207,24 @@ def _split_csv_str(value: object) -> List[str]:
     if isinstance(value, str):
         return [item.strip() for item in value.split(",") if item.strip()]
     return []
+
+
+def _parse_role_host_map(value: object) -> Dict[str, str]:
+    items = _split_csv_str(value)
+    mapping: Dict[str, str] = {}
+    for item in items:
+        if ":" not in item:
+            continue
+        role, host = item.split(":", 1)
+        role = role.strip()
+        host = host.strip()
+        if role and host:
+            mapping[role] = host
+    if not mapping:
+        return {
+            "orchestrator": "claude_desktop",
+            "research": "claude_desktop",
+            "quality": "codex_desktop",
+            "delivery": "codex_desktop",
+        }
+    return mapping

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 from threading import Lock
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-from .adapters import MockDesktopAdapter
+from .adapters import MockDesktopAdapter, NativeCliAdapter
 from .brief_parser import BriefValidationError, is_material_change, parse_brief
 from .catalog import load_catalog
 from .config import AppConfig
@@ -32,6 +33,7 @@ from .models import (
 from .router import route_skills
 from .utils import utc_now
 from .watcher import BriefWatcherRegistry
+from .worker_pool import DistributedWorkerPool
 
 
 class SkillAutopilotEngine:
@@ -39,12 +41,15 @@ class SkillAutopilotEngine:
         self.config = config
         self.db = Database(config.db_path)
         state_dir = str(Path(config.db_path).expanduser().parent)
-        self.adapters = {
-            "claude_desktop": MockDesktopAdapter("claude_desktop", state_dir=state_dir),
-            "codex_desktop": MockDesktopAdapter("codex_desktop", state_dir=state_dir),
-        }
+        self.adapters = self._build_adapters(state_dir=state_dir)
         self.lease_manager = LeaseManager(db=self.db, adapters=self.adapters, ttl_hours=config.lease_ttl_hours)
-        self.executor = OrchestratorExecutor(self.db)
+        self.worker_pool = DistributedWorkerPool(
+            adapters=self.adapters,
+            role_host_map=config.role_host_map,
+            max_workers=config.worker_pool_size,
+            remote_worker_endpoints=config.remote_worker_endpoints,
+        )
+        self.executor = OrchestratorExecutor(self.db, worker_pool=self.worker_pool)
         self.watcher = BriefWatcherRegistry()
         self._intent_cache: Dict[str, object] = {}
         self._lock = Lock()
@@ -306,6 +311,9 @@ class SkillAutopilotEngine:
             service_time=utc_now(),
             last_snapshot_hash=self._last_snapshot_hash,
             user_mode="admin" if self.config.admin_mode else "standard",
+            adapter_mode=self.config.adapter_mode,
+            worker_pool_size=self.config.worker_pool_size,
+            remote_worker_count=len(self.config.remote_worker_endpoints),
         )
 
     def sweep_expired(self) -> List[str]:
@@ -344,3 +352,26 @@ class SkillAutopilotEngine:
     def _active_hosts(self, project_id: str) -> List[str]:
         leases = self.db.get_active_leases(project_id=project_id)
         return sorted({lease["host"] for lease in leases})
+
+    def _build_adapters(self, state_dir: str):
+        mode = (self.config.adapter_mode or "native_cli").strip().lower()
+        if mode == "native_cli":
+            claude_cmd = shutil.which("claude")
+            codex_cmd = shutil.which("codex")
+            if claude_cmd and codex_cmd:
+                return {
+                    "claude_desktop": NativeCliAdapter("claude_desktop", state_dir=state_dir, command=claude_cmd),
+                    "codex_desktop": NativeCliAdapter("codex_desktop", state_dir=state_dir, command=codex_cmd),
+                }
+            self.db.add_audit_event(
+                event_type="adapter.fallback.mock",
+                payload={
+                    "reason": "native_cli_missing",
+                    "claude_found": bool(claude_cmd),
+                    "codex_found": bool(codex_cmd),
+                },
+            )
+        return {
+            "claude_desktop": MockDesktopAdapter("claude_desktop", state_dir=state_dir),
+            "codex_desktop": MockDesktopAdapter("codex_desktop", state_dir=state_dir),
+        }
