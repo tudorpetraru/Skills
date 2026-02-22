@@ -36,6 +36,7 @@ Optional: auto-write Claude MCP config during install.
 2. DB: `~/.project-skill-router/state.db`
 3. Service URL: `http://127.0.0.1:8787`
 4. Catalog preference: packaged `skill_autopilot/skills` library first, then optional local catalogs.
+5. Curated catalog breadth: 115 skills across 18 categories (see `docs/skill-library.md`).
 
 ## Docs
 1. macOS install guide: `docs/install-macos.md`
@@ -62,3 +63,8 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 pytest -q
 ```
+
+## Catalog maintenance
+1. Source-of-truth catalog: `library/skills`.
+2. Packaged runtime mirror: `skill_autopilot/skills`.
+3. Sync command: `./scripts/sync_skill_catalog.sh`.

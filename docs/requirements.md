@@ -18,20 +18,19 @@ Primary UX:
 ## Functional Requirements
 1. Detect and validate `project_brief.md` before project start.
 2. Route skills from curated catalogs and activate on selected hosts.
-3. Exclude internal/system skills by default policy (e.g. `.system*`).
-4. Penalize and cap utility-only skills unless explicitly requested.
-5. Show selected skills and selection reasons.
-6. Produce a phase-based action plan.
-7. Execute tasks through orchestrator runtime with task-level state persistence.
-8. Support gate approvals to continue blocked runs.
-9. Re-route when the brief changes materially during active projects.
-10. Deactivate all project skills on `End Project`.
-11. Persist project state, routes, leases, runs, task outputs, and audit events locally.
-12. Expose lifecycle and execution operations through MCP for Claude integration.
-13. Support distributed workers (local + optional remote endpoints).
-14. Support user modes:
-1. Standard mode: no policy/catalog editing.
-2. Admin mode: policy and catalog management enabled.
+3. Maintain a broad curated skill taxonomy that covers at least product, architecture, build, QA, data, AI, governance, ops, comms, integration, frontend, backend, mobile, finance, and legal domains.
+4. Exclude internal/system skills by default policy (e.g. `.system*`).
+5. Penalize and cap utility-only skills unless explicitly requested.
+6. Show selected skills and selection reasons.
+7. Produce a phase-based action plan.
+8. Execute tasks through orchestrator runtime with task-level state persistence.
+9. Support gate approvals to continue blocked runs.
+10. Re-route when the brief changes materially during active projects.
+11. Deactivate all project skills on `End Project`.
+12. Persist project state, routes, leases, runs, task outputs, and audit events locally.
+13. Expose lifecycle and execution operations through MCP for Claude integration.
+14. Support distributed workers (local + optional remote endpoints).
+15. Support user modes with standard mode (no policy/catalog editing) and admin mode (policy/catalog management enabled).
 
 ## Non-Functional Requirements
 1. Time to first successful setup under 3 minutes.
