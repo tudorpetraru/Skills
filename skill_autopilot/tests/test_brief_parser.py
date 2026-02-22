@@ -81,3 +81,20 @@ A desktop shell app, an MCP integration layer, and local observability views.
     assert len(intent.goals) >= 2
     assert len(intent.constraints) >= 1
     assert len(intent.deliverables) >= 1
+
+
+def test_parse_brief_inferrs_constraints_and_deliverables_without_headings(tmp_path: Path) -> None:
+    brief = tmp_path / "project_brief.md"
+    brief.write_text(
+        """
+This initiative must run locally and deterministic routing should be preserved across reruns.
+The app should work offline during catalog outages.
+Final output includes a desktop app, API service, and a closure summary report.
+The team will package documentation artifacts for handoff.
+""".strip(),
+        encoding="utf-8",
+    )
+    intent, _ = parse_brief(str(brief))
+    assert len(intent.goals) >= 1
+    assert len(intent.constraints) >= 1
+    assert len(intent.deliverables) >= 1

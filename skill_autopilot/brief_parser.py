@@ -62,6 +62,63 @@ def _extract_candidates(lines: List[str], max_items: int = 8) -> List[str]:
     return items
 
 
+def _extract_semantic_candidates(text: str, section: str, max_items: int = 8) -> List[str]:
+    patterns = {
+        "constraints": [
+            r"\bmust\b",
+            r"\bshould\b",
+            r"\brequired\b",
+            r"\bcannot\b",
+            r"\bmust not\b",
+            r"\bonly\b",
+            r"\blimit(?:ed|s)?\b",
+            r"\bbound(?:ed|s)?\b",
+            r"\boffline\b",
+            r"\bdeterministic\b",
+            r"\blocal(?:-first)?\b",
+        ],
+        "deliverables": [
+            r"\bdeliverable(?:s)?\b",
+            r"\bartifact(?:s)?\b",
+            r"\boutput(?:s)?\b",
+            r"\bsummary\b",
+            r"\breport\b",
+            r"\bdocument(?:ation)?\b",
+            r"\bplan\b",
+            r"\bapp\b",
+            r"\bservice\b",
+            r"\bapi\b",
+            r"\btool(?:s)?\b",
+            r"\bpack(?:age|ager)?\b",
+        ],
+    }
+    clues = patterns.get(section, [])
+    if not clues:
+        return []
+
+    out: List[str] = []
+    seen: set[str] = set()
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if re.match(r"^\d+\.\s+\[.+\]\(.+\)\s*$", line):
+            continue
+        if line.startswith("|") and line.endswith("|"):
+            continue
+        if len(line) < 12:
+            continue
+        lowered = line.lower()
+        if any(re.search(pattern, lowered) for pattern in clues):
+            normalized = re.sub(r"\s+", " ", line).strip(" -\t")
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                out.append(normalized)
+                if len(out) >= max_items:
+                    break
+    return out
+
+
 def _collect_sections(text: str) -> Dict[str, List[str]]:
     lines = text.splitlines()
     sections = {"goals": [], "constraints": [], "deliverables": []}
@@ -129,6 +186,10 @@ def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
     if not sections["goals"]:
         # fallback to first meaningful lines in file as implied goals
         sections["goals"] = _extract_candidates(text.splitlines(), max_items=5)
+    if not sections["constraints"]:
+        sections["constraints"] = _extract_semantic_candidates(text, section="constraints", max_items=5)
+    if not sections["deliverables"]:
+        sections["deliverables"] = _extract_semantic_candidates(text, section="deliverables", max_items=5)
 
     try:
         intent = BriefIntent(
