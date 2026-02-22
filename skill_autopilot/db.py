@@ -77,6 +77,46 @@ class Database:
                     payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS project_runs (
+                    run_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    route_id TEXT,
+                    plan_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    summary_json TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT,
+                    FOREIGN KEY(project_id) REFERENCES projects(project_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS task_runs (
+                    task_run_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    phase TEXT NOT NULL,
+                    task_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    agent_role TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    output_json TEXT NOT NULL,
+                    error_text TEXT,
+                    order_index INTEGER NOT NULL,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT NOT NULL,
+                    FOREIGN KEY(project_id) REFERENCES projects(project_id),
+                    FOREIGN KEY(run_id) REFERENCES project_runs(run_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS gate_approvals (
+                    project_id TEXT NOT NULL,
+                    gate_id TEXT NOT NULL,
+                    approved_by TEXT NOT NULL,
+                    note TEXT NOT NULL,
+                    approved_at TEXT NOT NULL,
+                    PRIMARY KEY(project_id, gate_id),
+                    FOREIGN KEY(project_id) REFERENCES projects(project_id)
+                );
                 """
             )
 
@@ -259,5 +299,125 @@ class Database:
             rows = conn.execute(
                 "SELECT * FROM leases WHERE status='active' AND expires_at < ?",
                 (now_iso,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def create_project_run(self, run_id: str, project_id: str, route_id: str | None, plan_id: str) -> None:
+        now = utc_now().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO project_runs(run_id, project_id, route_id, plan_id, status, summary_json, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (run_id, project_id, route_id, plan_id, "running", json.dumps({}, sort_keys=True), now),
+            )
+
+    def update_project_run(self, run_id: str, status: str, summary: Dict[str, Any]) -> None:
+        now = utc_now().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE project_runs
+                SET status=?, summary_json=?, ended_at=?
+                WHERE run_id=?
+                """,
+                (status, json.dumps(summary, sort_keys=True), now, run_id),
+            )
+
+    def get_latest_project_run(self, project_id: str) -> Optional[Dict[str, Any]]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM project_runs WHERE project_id=? ORDER BY started_at DESC LIMIT 1",
+                (project_id,),
+            ).fetchone()
+            if not row:
+                return None
+            payload = dict(row)
+            payload["summary_json"] = json.loads(payload["summary_json"])
+            return payload
+
+    def insert_task_run(
+        self,
+        task_run_id: str,
+        run_id: str,
+        project_id: str,
+        phase: str,
+        task_id: str,
+        title: str,
+        agent_role: str,
+        status: str,
+        output: Dict[str, Any],
+        order_index: int,
+        error_text: str | None = None,
+    ) -> None:
+        now = utc_now().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO task_runs(
+                  task_run_id, run_id, project_id, phase, task_id, title, agent_role,
+                  status, output_json, error_text, order_index, started_at, ended_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_run_id,
+                    run_id,
+                    project_id,
+                    phase,
+                    task_id,
+                    title,
+                    agent_role,
+                    status,
+                    json.dumps(output, sort_keys=True),
+                    error_text,
+                    order_index,
+                    now,
+                    now,
+                ),
+            )
+
+    def list_task_runs(self, run_id: str) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM task_runs WHERE run_id=? ORDER BY order_index ASC",
+                (run_id,),
+            ).fetchall()
+            out: List[Dict[str, Any]] = []
+            for row in rows:
+                payload = dict(row)
+                payload["output_json"] = json.loads(payload["output_json"])
+                out.append(payload)
+            return out
+
+    def upsert_gate_approval(self, project_id: str, gate_id: str, approved_by: str, note: str) -> None:
+        now = utc_now().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO gate_approvals(project_id, gate_id, approved_by, note, approved_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(project_id, gate_id) DO UPDATE SET
+                  approved_by=excluded.approved_by,
+                  note=excluded.note,
+                  approved_at=excluded.approved_at
+                """,
+                (project_id, gate_id, approved_by, note, now),
+            )
+
+    def is_gate_approved(self, project_id: str, gate_id: str) -> bool:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM gate_approvals WHERE project_id=? AND gate_id=?",
+                (project_id, gate_id),
+            ).fetchone()
+            return row is not None
+
+    def list_gate_approvals(self, project_id: str) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM gate_approvals WHERE project_id=? ORDER BY approved_at DESC",
+                (project_id,),
             ).fetchall()
             return [dict(row) for row in rows]

@@ -11,17 +11,23 @@ from .catalog import load_catalog
 from .config import AppConfig
 from .db import Database
 from .decomposer import decompose_project
+from .executor import OrchestratorExecutor
 from .lease_manager import LeaseManager
 from .models import (
+    ApproveGateRequest,
+    ApproveGateResponse,
     EndProjectRequest,
     EndProjectResponse,
     GetProjectStatusResponse,
     HealthResponse,
     HistoryEntry,
     ProjectState,
+    RunProjectRequest,
+    RunProjectResponse,
     RoutingPolicy,
     StartProjectRequest,
     StartProjectResponse,
+    TaskStatusResponse,
 )
 from .router import route_skills
 from .utils import utc_now
@@ -38,6 +44,7 @@ class SkillAutopilotEngine:
             "codex_desktop": MockDesktopAdapter("codex_desktop", state_dir=state_dir),
         }
         self.lease_manager = LeaseManager(db=self.db, adapters=self.adapters, ttl_hours=config.lease_ttl_hours)
+        self.executor = OrchestratorExecutor(self.db)
         self.watcher = BriefWatcherRegistry()
         self._intent_cache: Dict[str, object] = {}
         self._lock = Lock()
@@ -197,6 +204,70 @@ class SkillAutopilotEngine:
             self.watcher.remove(request.project_id)
             self._intent_cache.pop(request.project_id, None)
             return response
+
+    def run_project(self, request: RunProjectRequest) -> RunProjectResponse:
+        with self._lock:
+            project = self.db.get_project(request.project_id)
+            if not project:
+                raise KeyError(f"project_id not found: {request.project_id}")
+            if project["state"] not in {ProjectState.ACTIVE.value, ProjectState.CLOSING.value}:
+                raise ValueError(f"project is not executable in state={project['state']}")
+
+            result = self.executor.run_project(
+                project_id=request.project_id,
+                auto_approve_gates=request.auto_approve_gates,
+            )
+            self.db.add_audit_event(
+                event_type="project.run.requested",
+                project_id=request.project_id,
+                payload=result.model_dump(mode="json"),
+            )
+            return result
+
+    def approve_gate(self, request: ApproveGateRequest) -> ApproveGateResponse:
+        with self._lock:
+            project = self.db.get_project(request.project_id)
+            if not project:
+                raise KeyError(f"project_id not found: {request.project_id}")
+            self.db.upsert_gate_approval(
+                project_id=request.project_id,
+                gate_id=request.gate_id,
+                approved_by=request.approved_by,
+                note=request.note,
+            )
+            self.db.add_audit_event(
+                event_type="project.gate.approved",
+                project_id=request.project_id,
+                payload={
+                    "gate_id": request.gate_id,
+                    "approved_by": request.approved_by,
+                    "note": request.note,
+                },
+            )
+            return ApproveGateResponse(
+                project_id=request.project_id,
+                gate_id=request.gate_id,
+                approved=True,
+                approved_by=request.approved_by,
+            )
+
+    def task_status(self, project_id: str) -> TaskStatusResponse:
+        project = self.db.get_project(project_id)
+        if not project:
+            raise KeyError(f"project_id not found: {project_id}")
+        run = self.db.get_latest_project_run(project_id)
+        if not run:
+            return TaskStatusResponse(project_id=project_id, status="not_started", executed_tasks=0, tasks=[], approvals=[])
+        tasks = self.db.list_task_runs(run["run_id"])
+        approvals = self.db.list_gate_approvals(project_id)
+        return TaskStatusResponse(
+            project_id=project_id,
+            run_id=run["run_id"],
+            status=run["status"],
+            executed_tasks=len(tasks),
+            tasks=tasks,
+            approvals=approvals,
+        )
 
     def get_project_status(self, project_id: str) -> GetProjectStatusResponse:
         project = self.db.get_project(project_id)

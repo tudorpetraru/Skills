@@ -121,6 +121,13 @@ class DesktopApp:
             self.project_var.set(self.project_id)
             self._write("Project started")
             self._write(json.dumps(data, indent=2))
+            run_payload = {"project_id": self.project_id, "auto_approve_gates": True}
+            run_res = requests.post(f"{self.base_url}/run-project", json=run_payload, timeout=30)
+            if run_res.status_code < 400:
+                self._write("Execution started")
+                self._write(json.dumps(run_res.json(), indent=2))
+            else:
+                self._write(f"Execution start failed: {run_res.text}")
         except requests.RequestException as exc:
             self._write(f"Start failed: {exc}")
 
@@ -134,6 +141,9 @@ class DesktopApp:
                 self._write(f"Status failed: {res.text}")
                 return
             self._write(json.dumps(res.json(), indent=2))
+            task_res = requests.get(f"{self.base_url}/task-status/{self.project_id}", timeout=12)
+            if task_res.status_code < 400:
+                self._write(json.dumps(task_res.json(), indent=2))
         except requests.RequestException as exc:
             self._write(f"Status failed: {exc}")
 

@@ -42,11 +42,14 @@ After restart, Claude can call these MCP tools:
 5. `sa_project_history`
 6. `sa_active_plan`
 7. `sa_service_health`
+8. `sa_run_project`
+9. `sa_task_status`
+10. `sa_approve_gate`
 
 ## 4) Example usage inside Claude
-1. Call `sa_start_project` with `workspace_path` and optional `brief_path`.
-2. Call `sa_project_status` to monitor progress.
-3. Call `sa_reroute_project` after meaningful brief edits.
+1. Call `sa_start_project` with `workspace_path` and optional `brief_path` (it auto-runs execution by default).
+2. Call `sa_task_status` to inspect task-level execution results.
+3. If blocked on a gate, call `sa_approve_gate`, then `sa_run_project`.
 4. Call `sa_end_project` when done.
 
 ## Notes

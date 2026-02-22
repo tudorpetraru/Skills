@@ -10,6 +10,9 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 5. `sa_project_history`
 6. `sa_active_plan`
 7. `sa_service_health`
+8. `sa_run_project`
+9. `sa_task_status`
+10. `sa_approve_gate`
 
 ## POST /start-project
 Starts or reactivates a project from a workspace brief.
@@ -72,6 +75,44 @@ Returns recent projects and route summaries.
 
 ## GET /health
 Returns service health, DB state, and last catalog snapshot metadata.
+
+## POST /run-project
+Executes the latest project action plan via orchestrator runtime.
+
+Request:
+```json
+{
+  "project_id": "string",
+  "auto_approve_gates": true
+}
+```
+
+Response:
+```json
+{
+  "project_id": "string",
+  "run_id": "string",
+  "status": "completed|blocked|failed",
+  "executed_tasks": 0,
+  "pending_gates": ["gate-1"]
+}
+```
+
+## GET /task-status/{project_id}
+Returns latest run status and per-task outputs.
+
+## POST /approve-gate
+Approves a blocked execution gate.
+
+Request:
+```json
+{
+  "project_id": "string",
+  "gate_id": "gate-1",
+  "approved_by": "human",
+  "note": "Approved to continue"
+}
+```
 
 ## Internal Logical Types
 ### SkillLease

@@ -144,3 +144,39 @@ class AdapterResult(BaseModel):
     host: HostTarget
     success: bool
     message: str
+
+
+class RunProjectRequest(BaseModel):
+    project_id: str
+    auto_approve_gates: bool = True
+
+
+class RunProjectResponse(BaseModel):
+    project_id: str
+    run_id: str
+    status: Literal["completed", "blocked", "failed"]
+    executed_tasks: int
+    pending_gates: List[str] = Field(default_factory=list)
+
+
+class ApproveGateRequest(BaseModel):
+    project_id: str
+    gate_id: str
+    approved_by: str = "human"
+    note: str = ""
+
+
+class ApproveGateResponse(BaseModel):
+    project_id: str
+    gate_id: str
+    approved: bool
+    approved_by: str
+
+
+class TaskStatusResponse(BaseModel):
+    project_id: str
+    run_id: Optional[str] = None
+    status: Optional[str] = None
+    executed_tasks: int = 0
+    tasks: List[Dict[str, object]] = Field(default_factory=list)
+    approvals: List[Dict[str, object]] = Field(default_factory=list)

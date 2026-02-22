@@ -34,7 +34,7 @@ See `docs/api-contracts.md`.
 ## Claude MCP
 1. Install with Python 3.11+.
 2. Point Claude desktop to `skill-autopilot-mcp --transport stdio`.
-3. Use MCP tools: `sa_start_project`, `sa_project_status`, `sa_reroute_project`, `sa_end_project`.
+3. Use MCP tools: `sa_start_project`, `sa_run_project`, `sa_task_status`, `sa_approve_gate`, `sa_end_project`.
 
 See `docs/claude-mcp-setup.md` for exact config.
 
@@ -48,6 +48,10 @@ See `docs/claude-mcp-setup.md` for exact config.
 ## Curated skill library
 1. Real catalog lives at `/Users/tudor/Documents/AI/Skills/library/skills`.
 2. Category map is documented in `/Users/tudor/Documents/AI/Skills/docs/skill-library.md`.
+
+## Capability Clarity
+1. Current capability matrix (fully available vs limited vs not implemented) is documented at:
+`/Users/tudor/Documents/AI/Skills/docs/capability-matrix.md`.
 
 ## Tests
 ```bash

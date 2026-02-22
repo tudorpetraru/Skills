@@ -8,7 +8,13 @@ from skill_autopilot.brief_parser import BriefValidationError, parse_brief
 from skill_autopilot.catalog import load_catalog
 from skill_autopilot.config import AppConfig, CatalogSource
 from skill_autopilot.engine import SkillAutopilotEngine
-from skill_autopilot.models import EndProjectRequest, SkillMetadata, StartProjectRequest
+from skill_autopilot.models import (
+    ApproveGateRequest,
+    EndProjectRequest,
+    RunProjectRequest,
+    SkillMetadata,
+    StartProjectRequest,
+)
 from skill_autopilot.router import route_skills
 
 
@@ -335,3 +341,55 @@ tags: [planning]
     )
     planner_ids = [skill.skill_id for skill in skills if "planner" in skill.skill_id]
     assert planner_ids == ["core.planner"]
+
+
+def test_run_project_executes_tasks(tmp_path: Path) -> None:
+    brief = tmp_path / "project_brief.md"
+    _write_brief(brief)
+
+    engine = SkillAutopilotEngine(_make_config(tmp_path))
+    response = engine.start_project(
+        StartProjectRequest(
+            workspace_path=str(tmp_path),
+            brief_path=str(brief),
+            host_targets=["claude_desktop", "codex_desktop"],
+        )
+    )
+
+    run = engine.run_project(RunProjectRequest(project_id=response.project_id, auto_approve_gates=True))
+    assert run.status == "completed"
+    assert run.executed_tasks > 0
+
+    status = engine.task_status(response.project_id)
+    assert status.status == "completed"
+    assert status.executed_tasks == run.executed_tasks
+
+
+def test_run_project_blocks_without_gate_approval(tmp_path: Path) -> None:
+    brief = tmp_path / "project_brief.md"
+    _write_brief(brief)
+    engine = SkillAutopilotEngine(_make_config(tmp_path))
+    response = engine.start_project(
+        StartProjectRequest(
+            workspace_path=str(tmp_path),
+            brief_path=str(brief),
+            host_targets=["claude_desktop"],
+        )
+    )
+
+    first = engine.run_project(RunProjectRequest(project_id=response.project_id, auto_approve_gates=False))
+    assert first.status == "blocked"
+    assert "gate-1" in first.pending_gates
+
+    approved = engine.approve_gate(
+        ApproveGateRequest(
+            project_id=response.project_id,
+            gate_id="gate-1",
+            approved_by="tester",
+            note="approved for continuation",
+        )
+    )
+    assert approved.approved is True
+
+    second = engine.run_project(RunProjectRequest(project_id=response.project_id, auto_approve_gates=False))
+    assert second.executed_tasks >= first.executed_tasks

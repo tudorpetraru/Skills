@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .config import AppConfig, load_config
 from .engine import SkillAutopilotEngine
-from .models import EndProjectRequest, StartProjectRequest
+from .models import ApproveGateRequest, EndProjectRequest, RunProjectRequest, StartProjectRequest
 
 SERVER_NAME = "skill-autopilot"
 SERVER_INSTRUCTIONS = (
@@ -37,6 +37,8 @@ def mcp_start_project(
     workspace_path: str,
     brief_path: Optional[str] = None,
     host_targets: Optional[List[str]] = None,
+    auto_run: bool = True,
+    auto_approve_gates: bool = True,
 ) -> Dict[str, Any]:
     engine = _get_engine()
     resolved_brief = brief_path or str(Path(workspace_path) / "project_brief.md")
@@ -48,12 +50,18 @@ def mcp_start_project(
         )
     )
     plan = engine.db.get_latest_plan(response.project_id)
+    run_result = None
+    if auto_run:
+        run_result = engine.run_project(
+            RunProjectRequest(project_id=response.project_id, auto_approve_gates=auto_approve_gates)
+        )
     return {
         "project_id": response.project_id,
         "status": response.status,
         "plan_id": response.plan_id,
         "selected_skills": [item.model_dump() for item in response.selected_skills],
         "action_plan": plan["plan_json"] if plan else None,
+        "execution": run_result.model_dump(mode="json") if run_result else None,
     }
 
 
@@ -105,6 +113,28 @@ def mcp_active_plan(project_id: str) -> Dict[str, Any]:
 def mcp_service_health() -> Dict[str, Any]:
     engine = _get_engine()
     return engine.health().model_dump(mode="json")
+
+
+@mcp.tool(name="sa_run_project", description="Execute the latest action plan for a project via orchestrator runtime")
+def mcp_run_project(project_id: str, auto_approve_gates: bool = True) -> Dict[str, Any]:
+    engine = _get_engine()
+    result = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
+    return result.model_dump(mode="json")
+
+
+@mcp.tool(name="sa_task_status", description="Return latest execution run status and per-task outcomes")
+def mcp_task_status(project_id: str) -> Dict[str, Any]:
+    engine = _get_engine()
+    return engine.task_status(project_id).model_dump(mode="json")
+
+
+@mcp.tool(name="sa_approve_gate", description="Approve a blocked gate so execution can continue")
+def mcp_approve_gate(project_id: str, gate_id: str, approved_by: str = "human", note: str = "") -> Dict[str, Any]:
+    engine = _get_engine()
+    result = engine.approve_gate(
+        ApproveGateRequest(project_id=project_id, gate_id=gate_id, approved_by=approved_by, note=note)
+    )
+    return result.model_dump(mode="json")
 
 
 @mcp.resource("skill-autopilot://policy", name="routing-policy", description="Current effective local routing policy")

@@ -14,13 +14,18 @@ from .brief_parser import BriefValidationError
 from .config import DEFAULT_CONFIG_PATH, load_config
 from .engine import SkillAutopilotEngine
 from .models import (
+    ApproveGateRequest,
+    ApproveGateResponse,
     EndProjectRequest,
     EndProjectResponse,
     GetProjectStatusResponse,
     HealthResponse,
     HistoryEntry,
+    RunProjectRequest,
+    RunProjectResponse,
     StartProjectRequest,
     StartProjectResponse,
+    TaskStatusResponse,
 )
 
 
@@ -83,6 +88,32 @@ def project_status(project_id: str) -> GetProjectStatusResponse:
 def end_project(request: EndProjectRequest) -> EndProjectResponse:
     try:
         return container.engine.end_project(request)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/run-project", response_model=RunProjectResponse)
+def run_project(request: RunProjectRequest) -> RunProjectResponse:
+    try:
+        return container.engine.run_project(request)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get("/task-status/{project_id}", response_model=TaskStatusResponse)
+def task_status(project_id: str) -> TaskStatusResponse:
+    try:
+        return container.engine.task_status(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/approve-gate", response_model=ApproveGateResponse)
+def approve_gate(request: ApproveGateRequest) -> ApproveGateResponse:
+    try:
+        return container.engine.approve_gate(request)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
