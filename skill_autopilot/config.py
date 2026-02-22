@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover
@@ -59,11 +58,7 @@ def ensure_default_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Path:
     if config_path.exists():
         return config_path
 
-    default_catalogs = [
-        CatalogSource(name="local_library", path=str(Path.cwd() / "library" / "skills"), pinned_ref="local-v1"),
-        CatalogSource(name="codex_home_skills", path=str(Path.home() / ".codex" / "skills"), pinned_ref="local"),
-        CatalogSource(name="workspace_skills", path=str(Path.cwd()), pinned_ref="workspace"),
-    ]
+    default_catalogs = _default_catalog_sources()
 
     lines = [
         '[service]',
@@ -122,7 +117,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
             catalogs.append(source)
 
     if not catalogs:
-        catalogs.append(CatalogSource(name="workspace_skills", path=str(Path.cwd()), pinned_ref="workspace"))
+        catalogs.extend(_default_catalog_sources())
 
     return AppConfig(
         service_host=service.get("host", "127.0.0.1"),
@@ -228,3 +223,27 @@ def _parse_role_host_map(value: object) -> Dict[str, str]:
             "delivery": "codex_desktop",
         }
     return mapping
+
+
+def _default_catalog_sources() -> List[CatalogSource]:
+    sources: List[CatalogSource] = []
+    seen: set[str] = set()
+
+    package_catalog = Path(__file__).resolve().parent / "skills"
+    repo_catalog = Path(__file__).resolve().parent.parent / "library" / "skills"
+    home_codex = Path.home() / ".codex" / "skills"
+
+    candidates = [
+        ("local_library", package_catalog, "packaged-v1"),
+        ("local_library_repo", repo_catalog, "repo-v1"),
+        ("codex_home_skills", home_codex, "local"),
+    ]
+
+    for name, path, pinned_ref in candidates:
+        resolved = str(path.expanduser().resolve())
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        sources.append(CatalogSource(name=name, path=resolved, pinned_ref=pinned_ref))
+
+    return sources

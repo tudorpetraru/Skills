@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "skill-autopilot": {
-      "command": "/Users/tudor/.skill-autopilot/venv/bin/skill-autopilot-mcp",
+      "command": "/Users/<your-user>/.skill-autopilot/venv/bin/skill-autopilot-mcp",
       "args": [
         "--transport",
         "stdio"

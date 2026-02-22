@@ -1,40 +1,34 @@
 # Claude MCP Setup
 
-This project includes a real MCP server entrypoint:
-
-- Command: `skill-autopilot-mcp`
-- Module: `skill_autopilot.mcp_server`
-- Default transport: `stdio` (recommended for Claude desktop)
-
-## 1) Install and verify
+## 1) Install runtime
+Use the repo installer:
 ```bash
-cd /Users/tudor/Documents/AI/Skills
-mkdir -p /Users/tudor/.skill-autopilot
-/opt/homebrew/bin/python3.11 -m venv /Users/tudor/.skill-autopilot/venv
-source /Users/tudor/.skill-autopilot/venv/bin/activate
-pip install /Users/tudor/Documents/AI/Skills
-/Users/tudor/.skill-autopilot/venv/bin/skill-autopilot-mcp --help
+./scripts/install_macos.sh
 ```
 
-## 2) Add to Claude desktop MCP config
-Create or edit Claude desktop config and add this server entry:
-
-```json
-{
-  "mcpServers": {
-    "skill-autopilot": {
-      "command": "/Users/tudor/.skill-autopilot/venv/bin/skill-autopilot-mcp",
-      "args": ["--transport", "stdio"],
-      "env": {}
-    }
-  }
-}
+Or install manually in your preferred venv:
+```bash
+python3 -m venv ~/.skill-autopilot/venv
+source ~/.skill-autopilot/venv/bin/activate
+pip install /path/to/Skills
 ```
 
-This path avoids macOS permission issues that can occur when Claude launches a venv binary under `Documents`.
+## 2) Configure Claude
+Recommended:
+```bash
+~/.skill-autopilot/venv/bin/skill-autopilot-configure-claude --apply
+```
 
-## 3) Restart Claude desktop
-After restart, Claude can call these MCP tools:
+Preview JSON snippet only:
+```bash
+~/.skill-autopilot/venv/bin/skill-autopilot-configure-claude --print-only
+```
+
+Manual config location:
+`~/Library/Application Support/Claude/claude_desktop_config.json`
+
+## 3) Restart Claude Desktop
+After restart, Claude should list these MCP tools:
 1. `sa_start_project`
 2. `sa_project_status`
 3. `sa_reroute_project`
@@ -47,7 +41,7 @@ After restart, Claude can call these MCP tools:
 10. `sa_approve_gate`
 11. `sa_validate_brief_path`
 
-## 4) Example usage inside Claude
+## 4) Example usage in Claude
 1. Call `sa_start_project` with `workspace_path` and optional `brief_path` (it auto-runs execution by default).
 2. Call `sa_task_status` to inspect task-level execution results.
 3. If blocked on a gate, call `sa_approve_gate`, then `sa_run_project`.

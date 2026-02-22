@@ -24,6 +24,8 @@ skill-autopilot-service = "skill_autopilot.service:main"
 skill-autopilot-ui = "skill_autopilot.desktop:main"
 skill-autopilot-mcp = "skill_autopilot.mcp_server:main"
 skill-autopilot-worker = "skill_autopilot.worker_node:main"
+skill-autopilot-doctor = "skill_autopilot.doctor:main"
+skill-autopilot-configure-claude = "skill_autopilot.claude_setup:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
@@ -31,3 +33,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["skill_autopilot*"]
+
+[tool.setuptools.package-data]
+skill_autopilot = ["skills/**/SKILL.md"]

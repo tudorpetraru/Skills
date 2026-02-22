@@ -1,73 +1,59 @@
-# Skill Autopilot (Prototype)
+# Skill Autopilot
 
-A local-first desktop prototype that automatically routes project skills for Claude/Codex-style desktop workflows.
+Local-first project skill orchestration for Claude/Codex desktop workflows.
 
 ## What it provides
-1. Minimal desktop UI: `Start Project`, `Status`, `End Project`, `History`.
-2. Background API service on `127.0.0.1:8787`.
-3. Deterministic routing from `project_brief.md`.
-4. Lease-based activation/deactivation for `claude_desktop` and `codex_desktop` adapters.
-5. SQLite-backed lifecycle and audit history.
-6. Auto reroute on material brief changes.
-7. MCP server for Claude/Codex integration (`skill-autopilot-mcp`).
-8. Native CLI execution adapters (`claude` and `codex`) with orchestrator task runtime.
-9. Distributed worker pool with optional remote worker nodes.
+1. Desktop UI with `Start Project`, `Status`, `End Project`, `History`.
+2. Local API service on `127.0.0.1:8787`.
+3. MCP server (`skill-autopilot-mcp`) for Claude/Codex integration.
+4. Deterministic routing from `project_brief.md`.
+5. Lease lifecycle and local SQLite audit history.
+6. Action-plan execution via native `claude` / `codex` CLIs.
+7. Optional distributed worker nodes.
 
-## Quick start
+## macOS install (recommended)
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install .
-skill-autopilot-ui
+git clone https://github.com/tudorpetraru/Skills.git
+cd Skills
+./scripts/install_macos.sh
 ```
 
-The UI launches and starts the local service automatically.
+Optional: auto-write Claude MCP config during install.
+```bash
+./scripts/install_macos.sh --apply-claude-config
+```
+
+## Core commands
+```bash
+~/.skill-autopilot/venv/bin/skill-autopilot-ui
+~/.skill-autopilot/venv/bin/skill-autopilot-doctor
+~/.skill-autopilot/venv/bin/skill-autopilot-configure-claude --print-only
+~/.skill-autopilot/venv/bin/skill-autopilot-configure-claude --apply
+```
 
 ## Defaults
-- Config path: `~/.project-skill-router/config.toml`
-- Database path: `~/.project-skill-router/state.db`
-- Service URL: `http://127.0.0.1:8787`
+1. Config: `~/.project-skill-router/config.toml`
+2. DB: `~/.project-skill-router/state.db`
+3. Service URL: `http://127.0.0.1:8787`
+4. Catalog preference: packaged `skill_autopilot/skills` library first, then optional local catalogs.
 
-If no config exists, the app creates a safe default with allowlisted local catalog roots.
+## Docs
+1. macOS install guide: `docs/install-macos.md`
+2. Claude MCP setup: `docs/claude-mcp-setup.md`
+3. API contracts: `docs/api-contracts.md`
+4. Skill library map: `docs/skill-library.md`
+5. Capability matrix: `docs/capability-matrix.md`
 
-## API
-See `docs/api-contracts.md`.
-
-## Claude MCP
-1. Install with Python 3.11+.
-2. Point Claude desktop to `skill-autopilot-mcp --transport stdio`.
-3. Use MCP tools: `sa_start_project`, `sa_run_project`, `sa_task_status`, `sa_approve_gate`, `sa_end_project`, `sa_validate_brief_path`.
-
-See `docs/claude-mcp-setup.md` for exact config.
-
-## Routing quality defaults
-1. Excludes internal `.system*` skills by policy.
-2. Uses relevance threshold before selecting a skill.
-3. Penalizes utility-only skills unless explicitly requested in brief text.
-4. Caps utility skill count and cluster density to reduce noisy selections.
-5. Prefers the local curated source: `/Users/tudor/Documents/AI/Skills/library/skills`.
-
-## Curated skill library
-1. Real catalog lives at `/Users/tudor/Documents/AI/Skills/library/skills`.
-2. Category map is documented in `/Users/tudor/Documents/AI/Skills/docs/skill-library.md`.
-
-## Capability Clarity
-1. Current capability matrix (fully available vs limited vs not implemented) is documented at:
-`/Users/tudor/Documents/AI/Skills/docs/capability-matrix.md`.
-
-## Execution and workers
-1. Default adapter mode is `native_cli` (uses installed `claude` and `codex` CLIs).
-2. Worker pool runs concurrent task execution (`worker_pool_size` in config).
-3. Optional remote workers can be added via `remote_worker_endpoints` in config.
-4. Start a worker node with:
-`skill-autopilot-worker --host 127.0.0.1 --port 8790 --mode native_cli`
+## Routing defaults
+1. Excludes `.system*` skills.
+2. Applies minimum relevance threshold.
+3. Penalizes utility-only skills unless requested (`pdf`, `playwright`, `screenshot`).
+4. Caps utility and per-cluster selection density.
 
 ## Tests
 ```bash
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+pip install -e '.[dev]'
 pytest -q
 ```
-
-## Note on host adapters
-This prototype includes local adapter stubs that model activation/deactivation behavior and capability reporting. They can be replaced with real desktop host integrations without changing routing contracts.

@@ -23,6 +23,6 @@
 2. Multi-user auth, tenancy, and remote orchestration control plane.
 
 ## Source of Truth
-- API: `/Users/tudor/Documents/AI/Skills/docs/api-contracts.md`
-- MCP setup: `/Users/tudor/Documents/AI/Skills/docs/claude-mcp-setup.md`
-- Skill catalog: `/Users/tudor/Documents/AI/Skills/docs/skill-library.md`
+1. API: `docs/api-contracts.md`
+2. MCP setup: `docs/claude-mcp-setup.md`
+3. Skill catalog: `docs/skill-library.md`

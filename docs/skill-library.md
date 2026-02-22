@@ -1,6 +1,10 @@
 # Skill Library Map
 
-Catalog root: `/Users/tudor/Documents/AI/Skills/library/skills`
+Default runtime catalog root:
+`<venv>/lib/pythonX.Y/site-packages/skill_autopilot/skills`
+
+Repository source catalog:
+`library/skills`
 
 ## Core
 1. `core.orchestrator`
