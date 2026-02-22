@@ -8,6 +8,19 @@ Repository source catalog:
 
 Total curated skills: **115**
 
+## Skill Quality Standard
+Each `SKILL.md` now includes a full job description contract:
+1. `Job Mission`
+2. `Scope and Responsibilities`
+3. `Activation Signals`
+4. `Required Inputs`
+5. `Working Contract`
+6. `Execution Workflow`
+7. `Deliverables`
+8. `Definition of Done`
+9. `Guardrails`
+10. `Collaboration and Handoff`
+
 ## Category Coverage
 1. `ai`: 7 skills
 2. `architecture`: 7 skills

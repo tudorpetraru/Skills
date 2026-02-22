@@ -67,4 +67,5 @@ pytest -q
 ## Catalog maintenance
 1. Source-of-truth catalog: `library/skills`.
 2. Packaged runtime mirror: `skill_autopilot/skills`.
-3. Sync command: `./scripts/sync_skill_catalog.sh`.
+3. Regenerate rich job descriptions: `python3 scripts/expand_skill_descriptions.py`.
+4. Sync command: `./scripts/sync_skill_catalog.sh`.
