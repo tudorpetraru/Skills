@@ -48,6 +48,15 @@
 9. Watcher monitors brief for material changes and reroutes when needed.
 10. User clicks `End Project`, leases are deactivated and project is closed.
 
+## Task-to-Model Assignment
+1. `decomposer` emits tasks with optional `agent_role`.
+2. If `agent_role` is missing, executor applies phase defaults: `discovery -> orchestrator`, `build -> delivery`, `verify -> quality`, `ship -> orchestrator`.
+3. Worker pool maps role to host using `policy.role_host_map`.
+4. Default role-host mapping is `orchestrator -> claude_desktop`, `research -> claude_desktop`, `quality -> codex_desktop`, `delivery -> codex_desktop`.
+5. If preferred host is unavailable, worker pool falls back to round-robin over configured adapters.
+6. If `remote_worker_endpoints` is configured, execution is forwarded to worker nodes after host selection.
+7. Adapter mode controls whether selected host calls real CLIs (`native_cli`) or local mocks (`mock`).
+
 ## Data Model
 - `projects`: lifecycle state and workspace metadata.
 - `routes`: route hash, selected/rejected skills, brief hash.

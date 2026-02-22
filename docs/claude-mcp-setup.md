@@ -63,3 +63,4 @@ After restart, Claude should list these MCP tools:
 - Utility skills (`pdf`, `playwright`, `screenshot`) are penalized and capped unless explicitly requested in the brief.
 - Local policy is available as resource `skill-autopilot://policy`.
 - For VM/host path differences, set `SKILL_AUTOPILOT_PATH_MAPS` in MCP env if needed.
+- Full CLI/MCP options reference: `docs/commands-reference.md`.
