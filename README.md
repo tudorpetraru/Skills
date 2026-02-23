@@ -79,6 +79,14 @@ Every project gets the **Core pod** (always-on: orchestrator, scribe, research, 
 - **14 B-kernels**: Digital Product, Data & Analytics, ML/AI Systems, Cyber & SecOps, Embedded, Safety-Critical, Manufacturing, Chem/Materials, Life Sciences, Energy & Asset Ops, Financial Products, Construction, Content Production, Professional Services.
 - **40-industry mapping**: brief text is auto-classified to an industry, which selects default kernel(s).
 
+## LLM-powered industry detection (optional)
+For best results with unstructured briefs, set your Anthropic API key:
+```bash
+pip install -e '.[llm]'  # installs anthropic SDK
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+When set, a fast Claude Haiku call classifies the industry from the full brief text. Without it, a weighted keyword scorer is used as fallback.
+
 ## MCP execution model
 1. `sa_start_project` parses the brief, selects pods and kernels, generates a pod-aware plan, and returns the first task with full instructions.
 2. Claude Desktop works through tasks by calling `sa_complete_task` or `sa_skip_task`.

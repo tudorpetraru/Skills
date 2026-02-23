@@ -64,6 +64,10 @@ After restart, Claude should list these MCP tools:
 9. Use `sa_observability_overview` to monitor live projects and detect stale runs.
 
 ## Notes
+- For LLM-powered industry detection, install the optional `anthropic` dependency (`pip install -e '.[llm]'`) and add `ANTHROPIC_API_KEY` to the MCP server env in `claude_desktop_config.json`:
+  ```json
+  "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
+  ```
 - Skill routing excludes `.system*` skills by default.
 - Utility skills (`pdf`, `playwright`, `screenshot`) are penalized and capped unless explicitly requested in the brief.
 - Local policy is available as resource `skill-autopilot://policy`.

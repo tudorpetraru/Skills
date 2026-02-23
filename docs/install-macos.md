@@ -41,6 +41,16 @@ Expected critical checks:
 4. At least one catalog source exists.
 5. `skill-autopilot-mcp` is callable.
 
+## Optional: enable LLM industry detection
+For smarter project classification from unstructured briefs:
+```bash
+~/.skill-autopilot/venv/bin/pip install -e '/path/to/Skills[llm]'
+```
+Then set your API key in your shell profile or Claude MCP config env:
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
 ## Upgrade
 From an existing clone:
 ```bash
