@@ -57,6 +57,90 @@ class TaskStateMachine:
         )
         return run_id
 
+    def task_checklist(self, project_id: str, current_task_id: str | None = None) -> Dict[str, object]:
+        """Return all tasks across all phases with completion status.
+
+        Each task is annotated with:
+          - status: "completed", "skipped", "current", "pending", "blocked"
+          - marker: "[x]", "[~]", "[→]", "[ ]", "[!]"
+        Also returns a formatted text block for easy display.
+        """
+        plan_row = self.db.get_latest_plan(project_id)
+        if not plan_row:
+            return {"phases": [], "text": "No plan found."}
+
+        plan = plan_row["plan_json"]
+        run = self.db.get_latest_project_run(project_id)
+
+        # Build status map from task runs.
+        status_map: Dict[str, str] = {}
+        if run:
+            task_runs = self.db.list_task_runs(run["run_id"], limit=500)
+            for tr in task_runs:
+                status_map[tr["task_id"]] = tr.get("status", "completed")
+
+        phases_out: List[Dict[str, object]] = []
+        lines: List[str] = []
+        found_current = False
+
+        for phase in plan.get("phases", []):
+            phase_name = str(phase.get("name", "build"))
+            phase_tasks: List[Dict[str, object]] = []
+
+            # Check if phase is gated.
+            gate = self._phase_gate(phase_name, plan.get("gates", []))
+            phase_blocked = False
+            if gate:
+                gate_id = str(gate.get("gate_id"))
+                if not self.db.is_gate_approved(project_id, gate_id):
+                    phase_blocked = True
+
+            lines.append(f"\n## {phase_name.title()}")
+
+            for task in phase.get("tasks", []):
+                task_id = str(task.get("task_id", ""))
+                title = str(task.get("title", task_id))
+                db_status = status_map.get(task_id)
+
+                if db_status == "completed":
+                    marker = "[x]"
+                    status = "completed"
+                elif db_status == "skipped":
+                    marker = "[~]"
+                    status = "skipped"
+                elif phase_blocked and not found_current:
+                    marker = "[!]"
+                    status = "blocked"
+                elif task_id == current_task_id or (not found_current and db_status is None):
+                    marker = "[→]"
+                    status = "current"
+                    found_current = True
+                else:
+                    marker = "[ ]"
+                    status = "pending"
+
+                lines.append(f"  {marker} {title}")
+                phase_tasks.append({
+                    "task_id": task_id,
+                    "title": title,
+                    "status": status,
+                    "marker": marker,
+                })
+
+            phases_out.append({"phase": phase_name, "tasks": phase_tasks})
+
+        # Summary line.
+        total = sum(len(p["tasks"]) for p in phases_out)
+        done = sum(1 for p in phases_out for t in p["tasks"] if t["status"] in ("completed", "skipped"))
+        lines.insert(0, f"# Task Progress: {done}/{total} complete")
+
+        return {
+            "phases": phases_out,
+            "completed": done,
+            "total": total,
+            "text": "\n".join(lines),
+        }
+
     def next_task(self, project_id: str) -> Optional[Dict[str, object]]:
         """Return the next pending task with full instruction context.
 
@@ -95,6 +179,7 @@ class TaskStateMachine:
                             "blocked_by_gate": gate_id,
                             "gate_criteria": gate.get("criteria", []),
                             "message": f"Phase '{phase_name}' is blocked by gate '{gate_id}'. Approve it to continue.",
+                            "checklist": self.task_checklist(project_id, task_id),
                         }
 
                 return {
@@ -106,6 +191,7 @@ class TaskStateMachine:
                         "total": sum(len(p.get("tasks", [])) for p in plan.get("phases", [])),
                         "current_phase": phase_name,
                     },
+                    "checklist": self.task_checklist(project_id, task_id),
                 }
 
         # All tasks done.
@@ -115,6 +201,7 @@ class TaskStateMachine:
                 "completed": len(completed_ids),
                 "total": sum(len(p.get("tasks", [])) for p in plan.get("phases", [])),
             },
+            "checklist": self.task_checklist(project_id),
         }
 
     def complete_task(
