@@ -10,13 +10,12 @@ def test_worker_pool_executes_tasks_with_role_host_routing(tmp_path: Path) -> No
     state_dir = str(tmp_path / "state")
     adapters = {
         "claude_desktop": MockDesktopAdapter("claude_desktop", state_dir=state_dir),
-        "codex_desktop": MockDesktopAdapter("codex_desktop", state_dir=state_dir),
     }
     pool = DistributedWorkerPool(
         adapters=adapters,
         role_host_map={
             "orchestrator": "claude_desktop",
-            "delivery": "codex_desktop",
+            "delivery": "claude_desktop",
         },
         max_workers=2,
     )
@@ -36,5 +35,5 @@ def test_worker_pool_executes_tasks_with_role_host_routing(tmp_path: Path) -> No
 
     assert len(results) == 2
     assert results[0].host == "claude_desktop"
-    assert results[1].host == "codex_desktop"
+    assert results[1].host == "claude_desktop"
     assert all(item.status == "completed" for item in results)

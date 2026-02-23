@@ -12,7 +12,6 @@ from skill_autopilot.engine import SkillAutopilotEngine
 from skill_autopilot.models import (
     ApproveGateRequest,
     EndProjectRequest,
-    RunProjectRequest,
     SkillMetadata,
     StartProjectRequest,
 )
@@ -24,8 +23,8 @@ def _make_config(tmp_path: Path) -> AppConfig:
         db_path=str(tmp_path / "state.db"),
         lease_ttl_hours=1,
         max_active_skills=8,
-        adapter_mode="mock",
-        worker_pool_size=2,
+        adapter_mode="claude_desktop",
+        worker_pool_size=1,
         allowlisted_catalogs=[CatalogSource(name="workspace", path=str(tmp_path), pinned_ref="test")],
     )
 
@@ -60,7 +59,7 @@ def test_start_project_success(tmp_path: Path) -> None:
         StartProjectRequest(
             workspace_path=str(tmp_path),
             brief_path=str(brief),
-            host_targets=["claude_desktop", "codex_desktop"],
+            host_targets=["claude_desktop"],
         )
     )
 
@@ -137,7 +136,7 @@ def test_end_project_deactivates_leases(tmp_path: Path) -> None:
         StartProjectRequest(
             workspace_path=str(tmp_path),
             brief_path=str(brief),
-            host_targets=["claude_desktop", "codex_desktop"],
+            host_targets=["claude_desktop"],
         )
     )
 
@@ -325,12 +324,12 @@ def test_catalog_reads_frontmatter_and_dependencies(tmp_path: Path) -> None:
 name: Planner Skill
 description: Plans execution from normalized requirements.
 tags: [planning, delivery]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
 # Planner Skill
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: planning,delivery
 Depends-On: core.orchestrator,core.quality
 """.strip(),
@@ -398,31 +397,11 @@ tags: [planning]
     assert planner_ids == ["core.planner"]
 
 
-def test_run_project_executes_tasks(tmp_path: Path) -> None:
+def test_task_machine_next_complete_flow(tmp_path: Path) -> None:
+    """Test the sa_next_task / sa_complete_task flow via the task state machine."""
     brief = tmp_path / "project_brief.md"
     _write_brief(brief)
 
-    engine = SkillAutopilotEngine(_make_config(tmp_path))
-    response = engine.start_project(
-        StartProjectRequest(
-            workspace_path=str(tmp_path),
-            brief_path=str(brief),
-            host_targets=["claude_desktop", "codex_desktop"],
-        )
-    )
-
-    run = engine.run_project(RunProjectRequest(project_id=response.project_id, auto_approve_gates=True))
-    assert run.status == "completed"
-    assert run.executed_tasks > 0
-
-    status = engine.task_status(response.project_id)
-    assert status.status == "completed"
-    assert status.executed_tasks == run.executed_tasks
-
-
-def test_run_project_blocks_without_gate_approval(tmp_path: Path) -> None:
-    brief = tmp_path / "project_brief.md"
-    _write_brief(brief)
     engine = SkillAutopilotEngine(_make_config(tmp_path))
     response = engine.start_project(
         StartProjectRequest(
@@ -432,19 +411,96 @@ def test_run_project_blocks_without_gate_approval(tmp_path: Path) -> None:
         )
     )
 
-    first = engine.run_project(RunProjectRequest(project_id=response.project_id, auto_approve_gates=False))
-    assert first.status == "blocked"
-    assert "gate-1" in first.pending_gates
+    # Start a run.
+    plan = engine.db.get_latest_plan(response.project_id)
+    route = engine.db.get_latest_route(response.project_id)
+    run_id = engine.task_machine.start_run(
+        project_id=response.project_id,
+        plan_id=plan["plan_id"],
+        route_id=route["route_id"],
+    )
+    assert run_id
 
-    approved = engine.approve_gate(
-        ApproveGateRequest(
+    # Get first task.
+    first = engine.task_machine.next_task(response.project_id)
+    assert first is not None
+    assert first["status"] == "ready"
+    assert "task" in first
+    task = first["task"]
+    assert task["task_id"]
+    assert task["phase"] == "discovery"
+
+    # Complete it.
+    result = engine.task_machine.complete_task(
+        project_id=response.project_id,
+        task_id=str(task["task_id"]),
+        summary="Scope document produced",
+    )
+    assert result["completed_task_id"] == str(task["task_id"])
+    assert result["next"] is not None
+
+    # Complete all remaining tasks to reach 'all_complete'.
+    max_iterations = 50
+    for _ in range(max_iterations):
+        next_result = engine.task_machine.next_task(response.project_id)
+        if next_result is None or next_result.get("status") == "all_complete":
+            break
+        if next_result.get("status") == "blocked":
+            engine.approve_gate(
+                ApproveGateRequest(
+                    project_id=response.project_id,
+                    gate_id=next_result["blocked_by_gate"],
+                    approved_by="test",
+                )
+            )
+            continue
+        task = next_result["task"]
+        engine.task_machine.complete_task(
             project_id=response.project_id,
-            gate_id="gate-1",
-            approved_by="tester",
-            note="approved for continuation",
+            task_id=str(task["task_id"]),
+            summary=f"Completed {task['task_id']}",
+        )
+    else:
+        pytest.fail("Did not reach all_complete within max iterations")
+
+    final = engine.task_machine.next_task(response.project_id)
+    assert final is not None
+    assert final["status"] == "all_complete"
+
+
+def test_task_machine_skip(tmp_path: Path) -> None:
+    """Test that skipping a task advances to the next one."""
+    brief = tmp_path / "project_brief.md"
+    _write_brief(brief)
+
+    engine = SkillAutopilotEngine(_make_config(tmp_path))
+    response = engine.start_project(
+        StartProjectRequest(
+            workspace_path=str(tmp_path),
+            brief_path=str(brief),
+            host_targets=["claude_desktop"],
         )
     )
-    assert approved.approved is True
 
-    second = engine.run_project(RunProjectRequest(project_id=response.project_id, auto_approve_gates=False))
-    assert second.executed_tasks >= first.executed_tasks
+    plan = engine.db.get_latest_plan(response.project_id)
+    route = engine.db.get_latest_route(response.project_id)
+    engine.task_machine.start_run(
+        project_id=response.project_id,
+        plan_id=plan["plan_id"],
+        route_id=route["route_id"],
+    )
+
+    first = engine.task_machine.next_task(response.project_id)
+    assert first["status"] == "ready"
+    task_id = str(first["task"]["task_id"])
+
+    result = engine.task_machine.skip_task(
+        project_id=response.project_id,
+        task_id=task_id,
+        reason="Not needed for this project",
+    )
+    assert result["skipped_task_id"] == task_id
+    assert result["next"] is not None
+    # The next task should be different from the skipped one.
+    if result["next"]["status"] == "ready":
+        assert str(result["next"]["task"]["task_id"]) != task_id

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from skill_autopilot.config import AppConfig, CatalogSource
 from skill_autopilot.engine import SkillAutopilotEngine
-from skill_autopilot.models import RunProjectRequest, StartProjectRequest
+from skill_autopilot.models import StartProjectRequest
 
 
 def _make_config(tmp_path: Path) -> AppConfig:
@@ -13,8 +13,8 @@ def _make_config(tmp_path: Path) -> AppConfig:
         db_path=str(tmp_path / "state.db"),
         lease_ttl_hours=1,
         max_active_skills=8,
-        adapter_mode="mock",
-        worker_pool_size=2,
+        adapter_mode="claude_desktop",
+        worker_pool_size=1,
         allowlisted_catalogs=[CatalogSource(name="workspace", path=str(tmp_path), pinned_ref="test")],
     )
 
@@ -95,7 +95,22 @@ def test_project_observability_contains_task_and_audit_context(tmp_path: Path) -
             host_targets=["claude_desktop"],
         )
     )
-    engine.run_project(RunProjectRequest(project_id=started.project_id, auto_approve_gates=True))
+
+    # Use the task machine to create a run and complete one task.
+    plan = engine.db.get_latest_plan(started.project_id)
+    route = engine.db.get_latest_route(started.project_id)
+    engine.task_machine.start_run(
+        project_id=started.project_id,
+        plan_id=plan["plan_id"],
+        route_id=route["route_id"],
+    )
+    first = engine.task_machine.next_task(started.project_id)
+    if first and first.get("status") == "ready":
+        engine.task_machine.complete_task(
+            project_id=started.project_id,
+            task_id=str(first["task"]["task_id"]),
+            summary="Test task completed",
+        )
 
     out = engine.project_observability(started.project_id, task_limit=10, audit_limit=10)
     assert out["project"]["project_id"] == started.project_id

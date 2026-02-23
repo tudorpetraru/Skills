@@ -6,21 +6,26 @@ from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
-from .async_jobs import AsyncJobManager
 from .brief_parser import resolve_workspace_path, validate_brief_path
 from .config import AppConfig, load_config
 from .engine import SkillAutopilotEngine
-from .models import ApproveGateRequest, EndProjectRequest, RunProjectRequest, StartProjectRequest
+from .models import ApproveGateRequest, EndProjectRequest, StartProjectRequest
 
 SERVER_NAME = "skill-autopilot"
 SERVER_INSTRUCTIONS = (
     "Routes project skills from project_brief.md, manages activation lifecycle, "
-    "and exposes status/history for desktop agent workflows."
+    "and exposes a task-by-task execution model for Claude Desktop.\n\n"
+    "Workflow:\n"
+    "1. Call sa_start_project to create a project and get the first task.\n"
+    "2. Work on the task using the instructions provided.\n"
+    "3. Call sa_complete_task when done, or sa_skip_task to skip.\n"
+    "4. Call sa_next_task to get the next task.\n"
+    "5. Repeat until all tasks are complete.\n"
+    "6. Call sa_end_project to close the project."
 )
 
 mcp = FastMCP(name=SERVER_NAME, instructions=SERVER_INSTRUCTIONS, log_level="WARNING")
 _engine: SkillAutopilotEngine | None = None
-_jobs: AsyncJobManager | None = None
 
 
 def _make_engine(config_path: Optional[str] = None) -> SkillAutopilotEngine:
@@ -35,23 +40,21 @@ def _get_engine() -> SkillAutopilotEngine:
     return _engine
 
 
-def _get_jobs() -> AsyncJobManager:
-    global _jobs
-    if _jobs is None:
-        engine = _get_engine()
-        state_path = Path(engine.config.db_path).expanduser().parent / "mcp_jobs.json"
-        _jobs = AsyncJobManager(max_workers=6, state_file=str(state_path))
-    return _jobs
+# ---------------------------------------------------------------------------
+# Core workflow tools
+# ---------------------------------------------------------------------------
 
 
-@mcp.tool(name="sa_start_project", description="Start a project from a workspace brief and activate selected skills")
+@mcp.tool(
+    name="sa_start_project",
+    description=(
+        "Start a project from a workspace brief. Parses the brief, selects pods and B-kernels, "
+        "generates a pod-aware action plan, and returns the first task with full instructions."
+    ),
+)
 def mcp_start_project(
     workspace_path: str,
     brief_path: Optional[str] = None,
-    host_targets: Optional[List[str]] = None,
-    auto_run: bool = False,
-    auto_approve_gates: bool = True,
-    wait_for_run_completion: bool = False,
 ) -> Dict[str, Any]:
     engine = _get_engine()
     resolved_brief = brief_path or str(Path(workspace_path) / "project_brief.md")
@@ -59,31 +62,114 @@ def mcp_start_project(
         StartProjectRequest(
             workspace_path=workspace_path,
             brief_path=resolved_brief,
-            host_targets=host_targets or ["claude_desktop", "codex_desktop"],
+            host_targets=["claude_desktop"],
         )
     )
     plan = engine.db.get_latest_plan(response.project_id)
     project = engine.db.get_project(response.project_id) or {}
     brief_diag = validate_brief_path(project.get("brief_path", resolved_brief))
     workspace_diag = resolve_workspace_path(project.get("workspace_path", workspace_path))
-    brief_summary = (plan or {}).get("plan_json", {}).get("summary", {}) if plan else {}
+
+    plan_json = plan["plan_json"] if plan else {}
+
+    # Start a run and get the first task.
+    first_task = None
+    run_id = None
+    if plan:
+        route = engine.db.get_latest_route(response.project_id)
+        run_id = engine.task_machine.start_run(
+            project_id=response.project_id,
+            plan_id=plan["plan_id"],
+            route_id=route["route_id"] if route else None,
+        )
+        first_task = engine.task_machine.next_task(response.project_id)
+
     return {
         "project_id": response.project_id,
         "status": response.status,
         "plan_id": response.plan_id,
+        "run_id": run_id,
+        "industry": plan_json.get("summary", {}).get("industry", ""),
+        "kernels": plan_json.get("kernels", []),
+        "pods": plan_json.get("pods", []),
         "selected_skills": [item.model_dump() for item in response.selected_skills],
-        "action_plan": plan["plan_json"] if plan else None,
+        "plan_summary": plan_json.get("summary", {}),
         "brief_resolution": brief_diag,
         "workspace_resolution": workspace_diag,
-        "brief_summary": brief_summary,
-        "execution": _dispatch_or_run(
-            project_id=response.project_id,
-            auto_approve_gates=auto_approve_gates,
-            wait_for_completion=wait_for_run_completion,
-        )
-        if auto_run
-        else None,
+        "first_task": first_task,
     }
+
+
+@mcp.tool(
+    name="sa_next_task",
+    description=(
+        "Get the next pending task for a project. Returns the task with full instructions, "
+        "pod context, acceptance criteria, and progress. Returns status='all_complete' when done, "
+        "or status='blocked' if a gate approval is needed."
+    ),
+)
+def mcp_next_task(project_id: str) -> Dict[str, Any]:
+    engine = _get_engine()
+    result = engine.task_machine.next_task(project_id)
+    if result is None:
+        return {"project_id": project_id, "status": "no_plan"}
+    return {"project_id": project_id, **result}
+
+
+@mcp.tool(
+    name="sa_complete_task",
+    description=(
+        "Mark a task as completed with optional summary, artifacts, and evidence. "
+        "Returns the next pending task automatically."
+    ),
+)
+def mcp_complete_task(
+    project_id: str,
+    task_id: str,
+    summary: str = "",
+    artifacts: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    engine = _get_engine()
+    result = engine.task_machine.complete_task(
+        project_id=project_id,
+        task_id=task_id,
+        summary=summary,
+        artifacts=artifacts or [],
+    )
+    engine.db.add_audit_event(
+        event_type="task.completed",
+        project_id=project_id,
+        payload={"task_id": task_id, "summary": summary},
+    )
+    return {"project_id": project_id, **result}
+
+
+@mcp.tool(
+    name="sa_skip_task",
+    description="Skip a task with a reason. Returns the next pending task.",
+)
+def mcp_skip_task(
+    project_id: str,
+    task_id: str,
+    reason: str = "",
+) -> Dict[str, Any]:
+    engine = _get_engine()
+    result = engine.task_machine.skip_task(
+        project_id=project_id,
+        task_id=task_id,
+        reason=reason,
+    )
+    engine.db.add_audit_event(
+        event_type="task.skipped",
+        project_id=project_id,
+        payload={"task_id": task_id, "reason": reason},
+    )
+    return {"project_id": project_id, **result}
+
+
+# ---------------------------------------------------------------------------
+# Existing lifecycle tools
+# ---------------------------------------------------------------------------
 
 
 @mcp.tool(name="sa_project_status", description="Get current project lifecycle state and active host footprint")
@@ -128,7 +214,7 @@ def mcp_service_health() -> Dict[str, Any]:
     return engine.health().model_dump(mode="json")
 
 
-@mcp.tool(name="sa_validate_brief_path", description="Validate and diagnose project brief path resolution and readability")
+@mcp.tool(name="sa_validate_brief_path", description="Validate and diagnose project brief path resolution")
 def mcp_validate_brief_path(workspace_path: str = "", brief_path: Optional[str] = None) -> Dict[str, Any]:
     if brief_path:
         candidate = brief_path
@@ -137,15 +223,6 @@ def mcp_validate_brief_path(workspace_path: str = "", brief_path: Optional[str] 
     else:
         return {"result": {"error": "Provide brief_path or workspace_path"}}
     return {"result": validate_brief_path(candidate)}
-
-
-@mcp.tool(name="sa_run_project", description="Execute the latest action plan for a project via orchestrator runtime")
-def mcp_run_project(project_id: str, auto_approve_gates: bool = True, wait_for_completion: bool = False) -> Dict[str, Any]:
-    return _dispatch_or_run(
-        project_id=project_id,
-        auto_approve_gates=auto_approve_gates,
-        wait_for_completion=wait_for_completion,
-    )
 
 
 @mcp.tool(name="sa_task_status", description="Return latest execution run status and per-task outcomes")
@@ -187,39 +264,9 @@ def mcp_approve_gate(project_id: str, gate_id: str, approved_by: str = "human", 
     return result.model_dump(mode="json")
 
 
-@mcp.tool(name="sa_job_status", description="Poll background MCP job status for async start/run operations")
-def mcp_job_status(job_id: str) -> Dict[str, Any]:
-    row = _get_jobs().get(job_id)
-    if row is None:
-        return {"job_id": job_id, "status": "not_found"}
-    return {
-        "job_id": row["job_id"],
-        "job_type": row["job_type"],
-        "project_id": row["project_id"],
-        "status": row["status"],
-        "created_at": row["created_at"].isoformat(),
-        "updated_at": row["updated_at"].isoformat(),
-        "result": row["result"],
-        "error": row["error"],
-    }
-
-
-@mcp.tool(name="sa_jobs_recent", description="List recent async MCP jobs for debugging")
-def mcp_jobs_recent(limit: int = 20) -> Dict[str, Any]:
-    items = []
-    for row in _get_jobs().list_recent(limit=limit):
-        items.append(
-            {
-                "job_id": row["job_id"],
-                "job_type": row["job_type"],
-                "project_id": row["project_id"],
-                "status": row["status"],
-                "created_at": row["created_at"].isoformat(),
-                "updated_at": row["updated_at"].isoformat(),
-                "error": row["error"],
-            }
-        )
-    return {"items": items}
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 
 
 @mcp.resource("skill-autopilot://policy", name="routing-policy", description="Current effective local routing policy")
@@ -260,18 +307,9 @@ def resource_observability() -> str:
     return "\n".join(lines)
 
 
-def _dispatch_or_run(project_id: str, auto_approve_gates: bool, wait_for_completion: bool) -> Dict[str, Any]:
-    engine = _get_engine()
-    if wait_for_completion:
-        result = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
-        return result.model_dump(mode="json")
-
-    def _work() -> Dict[str, Any]:
-        out = engine.run_project(RunProjectRequest(project_id=project_id, auto_approve_gates=auto_approve_gates))
-        return out.model_dump(mode="json")
-
-    job_id = _get_jobs().submit(job_type="run_project", fn=_work, project_id=project_id)
-    return {"status": "accepted", "job_id": job_id, "project_id": project_id}
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 
 def parse_args() -> argparse.Namespace:

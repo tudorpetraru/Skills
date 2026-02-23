@@ -230,6 +230,18 @@ class Database:
             payload["plan_json"] = json.loads(payload["plan_json"])
             return payload
 
+    def get_plan(self, plan_id: str) -> Optional[Dict[str, Any]]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM plans WHERE plan_id=?",
+                (plan_id,),
+            ).fetchone()
+            if not row:
+                return None
+            payload = dict(row)
+            payload["plan_json"] = json.loads(payload["plan_json"])
+            return payload
+
     def replace_leases(self, project_id: str, leases: Iterable[Dict[str, Any]]) -> None:
         now = utc_now().isoformat()
         with self._connect() as conn:

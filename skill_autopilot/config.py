@@ -38,18 +38,19 @@ class AppConfig:
     utility_penalty: float = 0.35
     preferred_sources: List[str] = field(default_factory=lambda: ["local_library"])
     preferred_source_bonus: float = 0.08
-    adapter_mode: str = "native_cli"
-    worker_pool_size: int = 6
+    adapter_mode: str = "claude_desktop"
+    worker_pool_size: int = 1
     role_host_map: Dict[str, str] = field(
         default_factory=lambda: {
             "orchestrator": "claude_desktop",
             "research": "claude_desktop",
-            "quality": "codex_desktop",
-            "delivery": "codex_desktop",
+            "quality": "claude_desktop",
+            "delivery": "claude_desktop",
         }
     )
     remote_worker_endpoints: List[str] = field(default_factory=list)
     admin_mode: bool = False
+    default_industry: str = ""
     allowlisted_catalogs: List[CatalogSource] = field(default_factory=list)
 
 
@@ -75,10 +76,11 @@ def ensure_default_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Path:
         'utility_penalty = 0.35',
         'preferred_sources = "local_library"',
         'preferred_source_bonus = 0.08',
-        'adapter_mode = "native_cli"',
-        'worker_pool_size = 6',
-        'role_host_map = "orchestrator:claude_desktop,research:claude_desktop,quality:codex_desktop,delivery:codex_desktop"',
+        'adapter_mode = "claude_desktop"',
+        'worker_pool_size = 1',
+        'role_host_map = "orchestrator:claude_desktop,research:claude_desktop,quality:claude_desktop,delivery:claude_desktop"',
         'remote_worker_endpoints = ""',
+        'default_industry = ""',
         'admin_mode = false',
         '',
     ]

@@ -1,74 +1,53 @@
+"""Task state machine executor.
+
+Replaces the subprocess-spawning executor with a stateful task tracker.
+Claude Desktop works through tasks via sa_next_task / sa_complete_task MCP calls.
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 from .db import Database
-from .models import RunProjectResponse
+from .models import TaskState
 from .utils import utc_now
-from .worker_pool import DistributedWorkerPool
 
 
-PHASE_DEFAULT_ROLE = {
-    "discovery": "orchestrator",
-    "build": "delivery",
-    "verify": "quality",
-    "ship": "orchestrator",
-}
+PHASE_ORDER = ["discovery", "build", "verify", "ship"]
 
 
-@dataclass
-class ExecutionContext:
-    project_id: str
-    run_id: str
-    plan_id: str
-    route_id: str | None
+class TaskStateMachine:
+    """Manages task lifecycle for a project run.
 
+    Tasks flow: pending → active → completed/skipped/failed.
+    """
 
-class OrchestratorExecutor:
-    def __init__(self, db: Database, worker_pool: DistributedWorkerPool):
+    def __init__(self, db: Database):
         self.db = db
-        self.worker_pool = worker_pool
 
-    def run_project(self, project_id: str, auto_approve_gates: bool = True) -> RunProjectResponse:
-        project = self.db.get_project(project_id)
-        if not project:
-            raise KeyError(f"project_id not found: {project_id}")
-
-        plan_row = self.db.get_latest_plan(project_id)
+    def start_run(self, project_id: str, plan_id: str, route_id: str | None = None) -> str:
+        """Create a new project run and initialize task records from the plan."""
+        run_id = str(uuid4())
+        plan_row = self.db.get_plan(plan_id)
         if not plan_row:
-            raise KeyError(f"No execution plan found for project_id={project_id}")
-
-        route = self.db.get_latest_route(project_id)
-        context = ExecutionContext(
-            project_id=project_id,
-            run_id=str(uuid4()),
-            plan_id=plan_row["plan_id"],
-            route_id=route["route_id"] if route else None,
-        )
-
-        self.db.create_project_run(
-            run_id=context.run_id,
-            project_id=context.project_id,
-            route_id=context.route_id,
-            plan_id=context.plan_id,
-        )
+            raise KeyError(f"plan_id not found: {plan_id}")
 
         plan = plan_row["plan_json"]
-        phases = _normalize_phases(plan.get("phases", []))
-        gates = list(plan.get("gates", []))
-        task_order = 0
-        executed_tasks = 0
-        failed_tasks = 0
-        route_selected = _selected_skill_ids(self.db.get_latest_route(project_id))
-        planned_tasks = sum(len(list(phase.get("tasks", []))) for phase in phases)
+        phases = plan.get("phases", [])
+        total_tasks = sum(len(phase.get("tasks", [])) for phase in phases)
 
+        self.db.create_project_run(
+            run_id=run_id,
+            project_id=project_id,
+            route_id=route_id,
+            plan_id=plan_id,
+        )
         self.db.update_project_run(
-            context.run_id,
+            run_id,
             "running",
             {
-                "planned_tasks": planned_tasks,
+                "planned_tasks": total_tasks,
                 "executed_tasks": 0,
                 "failed_tasks": 0,
                 "current_phase": "pending",
@@ -76,205 +55,244 @@ class OrchestratorExecutor:
             },
             ended=False,
         )
+        return run_id
 
-        for phase in phases:
-            phase_name = str(phase.get("name", "build"))
-            phase_tasks = list(phase.get("tasks", []))
-            self.db.update_project_run(
-                context.run_id,
-                "running",
-                {
-                    "planned_tasks": planned_tasks,
-                    "executed_tasks": executed_tasks,
-                    "failed_tasks": failed_tasks,
-                    "current_phase": phase_name,
-                    "phase_task_count": len(phase_tasks),
-                    "pending_gates": [],
-                },
-                ended=False,
-            )
+    def next_task(self, project_id: str) -> Optional[Dict[str, object]]:
+        """Return the next pending task with full instruction context.
 
-            def _on_result(res) -> None:
-                nonlocal task_order, executed_tasks, failed_tasks
-                task_order += 1
-                task = res.task
-                task_id = str(task.get("task_id", f"{phase_name}-{task_order}"))
-                title = str(task.get("title", "Execute task"))
-                role = str(task.get("agent_role") or PHASE_DEFAULT_ROLE.get(phase_name, "delivery"))
-                status = res.status
-                output = res.output or {"result": ""}
-                error_text = res.error
-                self.db.insert_task_run(
-                    task_run_id=str(uuid4()),
-                    run_id=context.run_id,
-                    project_id=context.project_id,
-                    phase=phase_name,
-                    task_id=task_id,
-                    title=title,
-                    agent_role=role,
-                    status=status,
-                    output=output,
-                    order_index=task_order,
-                    error_text=error_text,
-                )
-                if status == "completed":
-                    executed_tasks += 1
-                else:
-                    failed_tasks += 1
+        Returns None if all tasks are completed or the project has no plan.
+        """
+        plan_row = self.db.get_latest_plan(project_id)
+        if not plan_row:
+            return None
 
-                self.db.update_project_run(
-                    context.run_id,
-                    "running",
-                    {
-                        "planned_tasks": planned_tasks,
-                        "executed_tasks": executed_tasks,
-                        "failed_tasks": failed_tasks,
+        plan = plan_row["plan_json"]
+        run = self.db.get_latest_project_run(project_id)
+        completed_ids = set()
+        if run:
+            task_runs = self.db.list_task_runs(run["run_id"], limit=500)
+            completed_ids = {
+                tr["task_id"]
+                for tr in task_runs
+                if tr.get("status") in ("completed", "skipped")
+            }
+
+        # Walk phases in order, find first pending task.
+        for phase in plan.get("phases", []):
+            phase_name = phase.get("name", "build")
+            for task in phase.get("tasks", []):
+                task_id = str(task.get("task_id", ""))
+                if task_id in completed_ids:
+                    continue
+
+                # Check gate: is the previous phase's gate approved?
+                gate = self._phase_gate(phase_name, plan.get("gates", []))
+                if gate:
+                    gate_id = str(gate.get("gate_id"))
+                    if not self.db.is_gate_approved(project_id, gate_id):
+                        return {
+                            "status": "blocked",
+                            "blocked_by_gate": gate_id,
+                            "gate_criteria": gate.get("criteria", []),
+                            "message": f"Phase '{phase_name}' is blocked by gate '{gate_id}'. Approve it to continue.",
+                        }
+
+                return {
+                    "status": "ready",
+                    "task": task,
+                    "phase": phase_name,
+                    "progress": {
+                        "completed": len(completed_ids),
+                        "total": sum(len(p.get("tasks", [])) for p in plan.get("phases", [])),
                         "current_phase": phase_name,
-                        "last_task_id": task_id,
-                        "last_task_status": status,
-                        "pending_gates": [],
                     },
-                    ended=False,
-                )
-
-            phase_results = self.worker_pool.execute_phase(
-                project_id=project_id,
-                workspace_path=project["workspace_path"],
-                phase_name=phase_name,
-                tasks=phase_tasks,
-                selected_skills=route_selected,
-                on_result=_on_result,
-            )
-
-            failure = next((res for res in phase_results if res.status != "completed"), None)
-            if failure:
-                failed_task_id = str(failure.task.get("task_id", "unknown"))
-                summary = {
-                    "planned_tasks": planned_tasks,
-                    "executed_tasks": executed_tasks,
-                    "failed_tasks": failed_tasks,
-                    "pending_gates": [],
-                    "failed_task": failed_task_id,
-                    "failed_host": failure.host,
-                    "error": failure.error or "task failed",
-                    "finished_at": utc_now().isoformat(),
                 }
-                self.db.update_project_run(context.run_id, "failed", summary)
-                self.db.add_audit_event(
-                    event_type="project.run.failed",
-                    project_id=project_id,
-                    payload={
-                        "run_id": context.run_id,
-                        "task_id": failed_task_id,
-                        "host": failure.host,
-                        "error": failure.error,
-                    },
-                )
-                return RunProjectResponse(
-                    project_id=project_id,
-                    run_id=context.run_id,
-                    status="failed",
-                    executed_tasks=executed_tasks,
-                    pending_gates=[],
-                )
 
-            gate = _phase_gate(phase_name=phase_name, gates=gates)
-            if gate:
-                gate_id = str(gate.get("gate_id"))
-                if auto_approve_gates and not self.db.is_gate_approved(project_id, gate_id):
+        # All tasks done.
+        return {
+            "status": "all_complete",
+            "progress": {
+                "completed": len(completed_ids),
+                "total": sum(len(p.get("tasks", [])) for p in plan.get("phases", [])),
+            },
+        }
+
+    def complete_task(
+        self,
+        project_id: str,
+        task_id: str,
+        summary: str = "",
+        artifacts: List[str] | None = None,
+        evidence: Dict[str, object] | None = None,
+    ) -> Dict[str, object]:
+        """Mark a task as completed and return the next task."""
+        run = self.db.get_latest_project_run(project_id)
+        if not run:
+            raise KeyError(f"No active run for project {project_id}")
+
+        self.db.insert_task_run(
+            task_run_id=str(uuid4()),
+            run_id=run["run_id"],
+            project_id=project_id,
+            phase=self._task_phase(project_id, task_id),
+            task_id=task_id,
+            title=summary or task_id,
+            agent_role="claude_desktop",
+            status="completed",
+            output={
+                "summary": summary,
+                "artifacts": artifacts or [],
+                "evidence": evidence or {},
+            },
+            order_index=self._next_order_index(run["run_id"]),
+        )
+
+        # Update run summary.
+        self._update_run_summary(run["run_id"], project_id)
+
+        # Auto-approve gates if we finished a phase.
+        self._auto_approve_phase_gates(project_id, task_id)
+
+        # Get next task.
+        next_task = self.next_task(project_id)
+
+        # If all complete, mark run as completed.
+        if next_task and next_task.get("status") == "all_complete":
+            summary_data = run.get("summary_json") or {}
+            summary_data = dict(summary_data)
+            summary_data["finished_at"] = utc_now().isoformat()
+            self.db.update_project_run(run["run_id"], "completed", summary_data, ended=True)
+
+        return {
+            "completed_task_id": task_id,
+            "next": next_task,
+        }
+
+    def skip_task(
+        self,
+        project_id: str,
+        task_id: str,
+        reason: str = "",
+    ) -> Dict[str, object]:
+        """Mark a task as skipped and return the next task."""
+        run = self.db.get_latest_project_run(project_id)
+        if not run:
+            raise KeyError(f"No active run for project {project_id}")
+
+        self.db.insert_task_run(
+            task_run_id=str(uuid4()),
+            run_id=run["run_id"],
+            project_id=project_id,
+            phase=self._task_phase(project_id, task_id),
+            task_id=task_id,
+            title=f"Skipped: {reason}" if reason else f"Skipped: {task_id}",
+            agent_role="claude_desktop",
+            status="skipped",
+            output={"reason": reason},
+            order_index=self._next_order_index(run["run_id"]),
+        )
+        self._update_run_summary(run["run_id"], project_id)
+        return {
+            "skipped_task_id": task_id,
+            "reason": reason,
+            "next": self.next_task(project_id),
+        }
+
+    def _task_phase(self, project_id: str, task_id: str) -> str:
+        """Look up which phase a task belongs to."""
+        plan_row = self.db.get_latest_plan(project_id)
+        if plan_row:
+            for phase in plan_row["plan_json"].get("phases", []):
+                for task in phase.get("tasks", []):
+                    if str(task.get("task_id")) == task_id:
+                        return str(phase.get("name", "build"))
+        return "build"
+
+    def _next_order_index(self, run_id: str) -> int:
+        task_runs = self.db.list_task_runs(run_id, limit=500)
+        return len(task_runs) + 1
+
+    def _update_run_summary(self, run_id: str, project_id: str) -> None:
+        task_runs = self.db.list_task_runs(run_id, limit=500)
+        completed = sum(1 for tr in task_runs if tr.get("status") == "completed")
+        skipped = sum(1 for tr in task_runs if tr.get("status") == "skipped")
+        failed = sum(1 for tr in task_runs if tr.get("status") == "failed")
+
+        plan_row = self.db.get_latest_plan(project_id)
+        total = 0
+        current_phase = "build"
+        if plan_row:
+            phases = plan_row["plan_json"].get("phases", [])
+            total = sum(len(p.get("tasks", [])) for p in phases)
+            # Determine current phase from progress.
+            done_ids = {tr["task_id"] for tr in task_runs if tr.get("status") in ("completed", "skipped")}
+            for phase in phases:
+                for task in phase.get("tasks", []):
+                    if str(task.get("task_id")) not in done_ids:
+                        current_phase = str(phase.get("name", "build"))
+                        break
+                else:
+                    continue
+                break
+
+        self.db.update_project_run(
+            run_id,
+            "running",
+            {
+                "planned_tasks": total,
+                "executed_tasks": completed,
+                "skipped_tasks": skipped,
+                "failed_tasks": failed,
+                "current_phase": current_phase,
+                "pending_gates": [],
+            },
+            ended=False,
+        )
+
+    def _phase_gate(self, phase_name: str, gates: List[Dict[str, object]]) -> Dict[str, object] | None:
+        phase_gate_map = {
+            "build": "gate-1",     # Discovery must be reviewed before build.
+            "ship": "gate-2",      # Quality must be checked before ship.
+        }
+        expected = phase_gate_map.get(phase_name)
+        if not expected:
+            return None
+        for gate in gates:
+            if str(gate.get("gate_id")) == expected:
+                return gate
+        return None
+
+    def _auto_approve_phase_gates(self, project_id: str, completed_task_id: str) -> None:
+        """Auto-approve phase gates when all tasks in the gated phase are done."""
+        plan_row = self.db.get_latest_plan(project_id)
+        if not plan_row:
+            return
+
+        run = self.db.get_latest_project_run(project_id)
+        if not run:
+            return
+
+        task_runs = self.db.list_task_runs(run["run_id"], limit=500)
+        done_ids = {tr["task_id"] for tr in task_runs if tr.get("status") in ("completed", "skipped")}
+        plan = plan_row["plan_json"]
+
+        # Check if the discovery phase is complete → auto-approve gate-1.
+        # Check if the verify phase is complete → auto-approve gate-2.
+        gate_phase_map = {
+            "gate-1": "discovery",
+            "gate-2": "verify",
+        }
+        for gate_id, phase_name in gate_phase_map.items():
+            if self.db.is_gate_approved(project_id, gate_id):
+                continue
+            for phase in plan.get("phases", []):
+                if phase.get("name") != phase_name:
+                    continue
+                phase_task_ids = {str(t.get("task_id")) for t in phase.get("tasks", [])}
+                if phase_task_ids and phase_task_ids.issubset(done_ids):
                     self.db.upsert_gate_approval(
                         project_id=project_id,
                         gate_id=gate_id,
                         approved_by="system-auto",
-                        note="Auto-approved during orchestrator execution",
+                        note=f"All {phase_name} tasks completed",
                     )
-
-                if not self.db.is_gate_approved(project_id, gate_id):
-                    summary = {
-                        "planned_tasks": planned_tasks,
-                        "executed_tasks": executed_tasks,
-                        "failed_tasks": failed_tasks,
-                        "pending_gates": [gate_id],
-                        "current_phase": phase_name,
-                        "finished_at": utc_now().isoformat(),
-                    }
-                    self.db.update_project_run(context.run_id, "blocked", summary)
-                    self.db.add_audit_event(
-                        event_type="project.run.blocked",
-                        project_id=project_id,
-                        payload={"run_id": context.run_id, "pending_gate": gate_id},
-                    )
-                    return RunProjectResponse(
-                        project_id=project_id,
-                        run_id=context.run_id,
-                        status="blocked",
-                        executed_tasks=executed_tasks,
-                        pending_gates=[gate_id],
-                    )
-
-        summary = {
-            "planned_tasks": planned_tasks,
-            "executed_tasks": executed_tasks,
-            "failed_tasks": failed_tasks,
-            "pending_gates": [],
-            "finished_at": utc_now().isoformat(),
-        }
-        self.db.update_project_run(context.run_id, "completed", summary)
-        self.db.add_audit_event(
-            event_type="project.run.completed",
-            project_id=project_id,
-            payload={"run_id": context.run_id, "executed_tasks": executed_tasks},
-        )
-        return RunProjectResponse(
-            project_id=project_id,
-            run_id=context.run_id,
-            status="completed",
-            executed_tasks=executed_tasks,
-            pending_gates=[],
-        )
-
-def _phase_gate(phase_name: str, gates: List[Dict[str, object]]) -> Dict[str, object] | None:
-    phase_gate_map = {
-        "discovery": "gate-1",
-        "verify": "gate-2",
-    }
-    expected = phase_gate_map.get(phase_name)
-    if not expected:
-        return None
-    for gate in gates:
-        if str(gate.get("gate_id")) == expected:
-            return gate
-    return None
-
-
-def _selected_skill_ids(route: Dict[str, object] | None) -> List[str]:
-    if not route:
-        return []
-    try:
-        import json
-
-        raw = route.get("selected_skills_json", "[]")
-        parsed = json.loads(raw) if isinstance(raw, str) else raw
-        return [str(item.get("skill_id")) for item in parsed if isinstance(item, dict) and item.get("skill_id")]
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def _normalize_phases(raw_phases: object) -> List[Dict[str, object]]:
-    phases: List[Dict[str, object]] = []
-    if not isinstance(raw_phases, list):
-        return phases
-    for item in raw_phases:
-        if isinstance(item, dict):
-            name = str(item.get("name", "build"))
-            tasks = item.get("tasks")
-            phases.append(
-                {
-                    "name": name,
-                    "tasks": tasks if isinstance(tasks, list) else [],
-                }
-            )
-            continue
-        if isinstance(item, str):
-            phases.append({"name": item, "tasks": []})
-    return phases

@@ -2,18 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-import shutil
 from threading import Lock
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-from .adapters import MockDesktopAdapter, NativeCliAdapter
+from .adapters import MockDesktopAdapter
 from .brief_parser import BriefValidationError, is_material_change, parse_brief
 from .catalog import load_catalog
 from .config import AppConfig
 from .db import Database
 from .decomposer import decompose_project
-from .executor import OrchestratorExecutor
+from .executor import TaskStateMachine
 from .lease_manager import LeaseManager
 from .models import (
     ApproveGateRequest,
@@ -24,8 +23,6 @@ from .models import (
     HealthResponse,
     HistoryEntry,
     ProjectState,
-    RunProjectRequest,
-    RunProjectResponse,
     RoutingPolicy,
     StartProjectRequest,
     StartProjectResponse,
@@ -34,7 +31,6 @@ from .models import (
 from .router import route_skills
 from .utils import utc_now
 from .watcher import BriefWatcherRegistry
-from .worker_pool import DistributedWorkerPool
 
 
 class SkillAutopilotEngine:
@@ -44,13 +40,7 @@ class SkillAutopilotEngine:
         state_dir = str(Path(config.db_path).expanduser().parent)
         self.adapters = self._build_adapters(state_dir=state_dir)
         self.lease_manager = LeaseManager(db=self.db, adapters=self.adapters, ttl_hours=config.lease_ttl_hours)
-        self.worker_pool = DistributedWorkerPool(
-            adapters=self.adapters,
-            role_host_map=config.role_host_map,
-            max_workers=config.worker_pool_size,
-            remote_worker_endpoints=config.remote_worker_endpoints,
-        )
-        self.executor = OrchestratorExecutor(self.db, worker_pool=self.worker_pool)
+        self.task_machine = TaskStateMachine(self.db)
         self.watcher = BriefWatcherRegistry()
         self._intent_cache: Dict[str, object] = {}
         self._lock = Lock()
@@ -117,6 +107,10 @@ class SkillAutopilotEngine:
                     "host_targets": request.host_targets,
                     "selected_skill_count": len(route.selected_skills),
                     "rejected_skill_count": len(route.rejected_skills),
+                    "industry": intent.industry,
+                    "project_type": intent.project_type,
+                    "pod_count": len(plan_payload.get("pods", [])),
+                    "kernel_count": len(plan_payload.get("kernels", [])),
                 },
             )
 
@@ -241,25 +235,6 @@ class SkillAutopilotEngine:
             self._intent_cache.pop(request.project_id, None)
             return response
 
-    def run_project(self, request: RunProjectRequest) -> RunProjectResponse:
-        with self._lock:
-            project = self.db.get_project(request.project_id)
-            if not project:
-                raise KeyError(f"project_id not found: {request.project_id}")
-            if project["state"] not in {ProjectState.ACTIVE.value, ProjectState.CLOSING.value}:
-                raise ValueError(f"project is not executable in state={project['state']}")
-
-            result = self.executor.run_project(
-                project_id=request.project_id,
-                auto_approve_gates=request.auto_approve_gates,
-            )
-            self.db.add_audit_event(
-                event_type="project.run.requested",
-                project_id=request.project_id,
-                payload=result.model_dump(mode="json"),
-            )
-            return result
-
     def approve_gate(self, request: ApproveGateRequest) -> ApproveGateResponse:
         with self._lock:
             project = self.db.get_project(request.project_id)
@@ -358,9 +333,7 @@ class SkillAutopilotEngine:
             service_time=utc_now(),
             last_snapshot_hash=self._last_snapshot_hash,
             user_mode="admin" if self.config.admin_mode else "standard",
-            adapter_mode=self.config.adapter_mode,
-            worker_pool_size=self.config.worker_pool_size,
-            remote_worker_count=len(self.config.remote_worker_endpoints),
+            adapter_mode="claude_desktop",
         )
 
     def observability_overview(self, stale_minutes: int = 20, limit: int = 25) -> Dict[str, object]:
@@ -558,26 +531,9 @@ class SkillAutopilotEngine:
             )
 
     def _build_adapters(self, state_dir: str):
-        mode = (self.config.adapter_mode or "native_cli").strip().lower()
-        if mode == "native_cli":
-            claude_cmd = shutil.which("claude")
-            codex_cmd = shutil.which("codex")
-            if claude_cmd and codex_cmd:
-                return {
-                    "claude_desktop": NativeCliAdapter("claude_desktop", state_dir=state_dir, command=claude_cmd),
-                    "codex_desktop": NativeCliAdapter("codex_desktop", state_dir=state_dir, command=codex_cmd),
-                }
-            self.db.add_audit_event(
-                event_type="adapter.fallback.mock",
-                payload={
-                    "reason": "native_cli_missing",
-                    "claude_found": bool(claude_cmd),
-                    "codex_found": bool(codex_cmd),
-                },
-            )
+        # Claude Desktop only — single mock adapter for lease management.
         return {
             "claude_desktop": MockDesktopAdapter("claude_desktop", state_dir=state_dir),
-            "codex_desktop": MockDesktopAdapter("codex_desktop", state_dir=state_dir),
         }
 
 

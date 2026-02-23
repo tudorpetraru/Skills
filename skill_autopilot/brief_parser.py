@@ -161,6 +161,41 @@ def _infer_evidence(text: str) -> str:
     return "standard"
 
 
+def _infer_project_type(text: str) -> str:
+    """Detect the shape of work from the brief text."""
+    lowered = text.lower()
+    _TYPE_SIGNALS: List[tuple[str, list[str]]] = [
+        ("new_build", ["greenfield", "new product", "new service", "build from scratch", "new platform"]),
+        ("migration", ["migration", "migrate", "replatform", "lift and shift"]),
+        ("integration", ["integration", "integrate", "connector", "api integration"]),
+        ("refactor", ["refactor", "modernize", "re-architect", "tech debt"]),
+        ("automation", ["automate", "automation", "workflow", "orchestrat"]),
+        ("analysis", ["analysis", "research", "assessment", "evaluation", "audit"]),
+    ]
+    for ptype, signals in _TYPE_SIGNALS:
+        if any(sig in lowered for sig in signals):
+            return ptype
+    return "general"
+
+
+def _extract_pod_hints(text: str) -> List[str]:
+    """Extract explicit pod/capability-area hints from the brief."""
+    lowered = text.lower()
+    hints: List[str] = []
+    _POD_HINT_SIGNALS: List[tuple[str, list[str]]] = [
+        ("commercial", ["go-to-market", "pricing strategy", "sales enablement"]),
+        ("finance_governance", ["budget", "financial governance", "cost control", "sox compliance"]),
+        ("legal_risk", ["legal review", "regulatory", "compliance requirement", "gdpr", "hipaa"]),
+        ("people_talent", ["hiring plan", "onboarding", "team composition", "skill gap"]),
+        ("ops_supply", ["procurement", "supply chain", "vendor management"]),
+        ("data_insight", ["data pipeline", "bi report", "analytics dashboard"]),
+    ]
+    for pod_id, signals in _POD_HINT_SIGNALS:
+        if any(sig in lowered for sig in signals):
+            hints.append(pod_id)
+    return hints
+
+
 def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
     if not str(brief_path).strip():
         raise BriefValidationError("brief_path is required")
@@ -191,6 +226,12 @@ def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
     if not sections["deliverables"]:
         sections["deliverables"] = _extract_semantic_candidates(text, section="deliverables", max_items=5)
 
+    from .pods import detect_industry
+
+    industry = detect_industry(text)
+    project_type = _infer_project_type(text)
+    pod_hints = _extract_pod_hints(text)
+
     try:
         intent = BriefIntent(
             goals=sections["goals"],
@@ -198,6 +239,9 @@ def parse_brief(brief_path: str) -> Tuple[BriefIntent, str]:
             deliverables=sections["deliverables"],
             risk_tier=_infer_risk(text),
             evidence_level=_infer_evidence(text),
+            industry=industry,
+            project_type=project_type,
+            pod_hints=pod_hints,
             raw_text=text,
         )
     except ValueError as exc:

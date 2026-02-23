@@ -156,7 +156,10 @@ def _skill_from_file(skill_path: Path, source: CatalogSource) -> SkillMetadata |
     dependencies = _to_list(frontmatter.get("dependencies")) + _to_list(frontmatter.get("depends_on")) + meta["dependencies"]
     conflicts = _to_list(frontmatter.get("conflicts")) + _to_list(frontmatter.get("conflicts_with")) + meta["conflicts"]
 
-    hosts = hosts or ["claude_desktop", "codex_desktop"]
+    hosts = hosts or ["claude_desktop"]
+    # Filter to valid hosts only.
+    valid_hosts = {"claude_desktop"}
+    hosts = [h for h in hosts if h in valid_hosts] or ["claude_desktop"]
     tags = tags or [word.lower() for word in re.findall(r"[a-zA-Z0-9_]+", name)[:4]]
 
     try:

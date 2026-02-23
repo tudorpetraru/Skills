@@ -30,7 +30,7 @@ Options:
 4. `--reload`: Enable uvicorn auto-reload (dev only).
 
 ### `skill-autopilot-mcp`
-Runs the MCP server for Claude/Codex MCP clients.
+Runs the MCP server for Claude Desktop.
 
 Usage:
 ```bash
@@ -40,20 +40,6 @@ skill-autopilot-mcp [--config CONFIG] [--transport {stdio,sse,streamable-http}]
 Options:
 1. `--config CONFIG`: Path to config TOML.
 2. `--transport`: MCP transport (`stdio` default).
-
-### `skill-autopilot-worker`
-Runs an optional standalone worker node (`/execute`, `/health`) for distributed execution.
-
-Usage:
-```bash
-skill-autopilot-worker [--host HOST] [--port PORT] [--mode {native_cli,mock}] [--state-dir STATE_DIR]
-```
-
-Options:
-1. `--host HOST`: Bind host (default `127.0.0.1`).
-2. `--port PORT`: Bind port (default `8790`).
-3. `--mode`: `native_cli` (default) or `mock`.
-4. `--state-dir STATE_DIR`: Local state directory path.
 
 ### `skill-autopilot-doctor`
 Runs installation/runtime checks.
@@ -125,89 +111,103 @@ Options:
 
 All tool names are namespaced with `sa_`.
 
-### `sa_start_project`
+### Task Workflow (primary flow)
+
+#### `sa_start_project`
+Parses the brief, selects pods and B-kernels, generates a pod-aware plan, and returns the first task.
+
 Arguments:
 1. `workspace_path` (required): project directory path.
 2. `brief_path` (optional): brief file path. Default: `<workspace_path>/project_brief.md`.
-3. `host_targets` (optional): list of hosts. Default: `["claude_desktop","codex_desktop"]`.
-4. `auto_run` (optional, default `false`): dispatch run after start.
-5. `auto_approve_gates` (optional, default `true`): gate behavior for execution.
-6. `wait_for_run_completion` (optional, default `false`): if auto-run, block until run completes.
 
-### `sa_project_status`
+#### `sa_next_task`
+Returns the next pending task with full instructions, pod context, acceptance criteria, and progress.
+
 Arguments:
 1. `project_id` (required).
 
-### `sa_reroute_project`
+Returns:
+- `status: "ready"` with `task` object when a task is available.
+- `status: "blocked"` with `blocked_by_gate` when a gate needs approval.
+- `status: "all_complete"` when all tasks are done.
+
+#### `sa_complete_task`
+Marks a task as completed and returns the next task.
+
+Arguments:
+1. `project_id` (required).
+2. `task_id` (required).
+3. `summary` (optional): completion summary.
+4. `artifacts` (optional): list of artifact paths produced.
+
+#### `sa_skip_task`
+Skips a task with a reason and returns the next task.
+
+Arguments:
+1. `project_id` (required).
+2. `task_id` (required).
+3. `reason` (optional): why the task was skipped.
+
+### Lifecycle
+
+#### `sa_project_status`
+Arguments:
+1. `project_id` (required).
+
+#### `sa_reroute_project`
 Arguments:
 1. `project_id` (required).
 2. `force` (optional, default `false`): force reroute even when diff is not material.
 
-### `sa_end_project`
+#### `sa_end_project`
 Arguments:
 1. `project_id` (required).
 2. `reason` (optional, default `completed`): `completed|paused|cancelled`.
 
-### `sa_project_history`
+#### `sa_project_history`
 Arguments:
 1. `limit` (optional, default `20`, capped at `100`).
 
-### `sa_active_plan`
+#### `sa_active_plan`
 Arguments:
 1. `project_id` (required).
 
-### `sa_service_health`
+#### `sa_service_health`
 Arguments:
 1. None.
 
-### `sa_run_project`
+#### `sa_task_status`
 Arguments:
 1. `project_id` (required).
-2. `auto_approve_gates` (optional, default `true`).
-3. `wait_for_completion` (optional, default `false`): async by default; returns `job_id`.
+2. `task_limit` (optional, default `50`, max `500`).
+3. `include_outputs` (optional, default `false`).
 
-### `sa_task_status`
-Arguments:
-1. `project_id` (required).
-2. `task_limit` (optional, default `50`, max `500`): limits task payload for faster responses.
-3. `include_outputs` (optional, default `false`): include full per-task output payloads.
-
-### `sa_approve_gate`
+#### `sa_approve_gate`
 Arguments:
 1. `project_id` (required).
 2. `gate_id` (required).
 3. `approved_by` (optional, default `human`).
 4. `note` (optional, default empty string).
 
-### `sa_validate_brief_path`
+#### `sa_validate_brief_path`
 Arguments:
 1. `workspace_path` (optional, default empty string).
 2. `brief_path` (optional).
 
-Behavior:
-1. If both are missing, returns an error asking for one of them.
-2. If only `workspace_path` is passed, validates `<workspace_path>/project_brief.md`.
+### Observability
 
-### `sa_job_status`
-Arguments:
-1. `job_id` (required).
-
-### `sa_jobs_recent`
-Arguments:
-1. `limit` (optional, default `20`).
-
-### `sa_observability_overview`
+#### `sa_observability_overview`
 Arguments:
 1. `stale_minutes` (optional, default `20`).
 2. `limit` (optional, default `25`).
 
-### `sa_project_observability`
+#### `sa_project_observability`
 Arguments:
 1. `project_id` (required).
 2. `task_limit` (optional, default `20`).
 3. `audit_limit` (optional, default `20`).
 
-### `sa_reconcile_stale_projects`
+#### `sa_reconcile_stale_projects`
 Arguments:
 1. `stale_minutes` (optional, default `20`).
 2. `close` (optional, default `false`).
@@ -223,31 +223,18 @@ Base URL default: `http://127.0.0.1:8787`
 1. `POST /start-project`
 2. `GET /project-status/{project_id}`
 3. `POST /end-project`
-4. `POST /run-project`
-5. `GET /task-status/{project_id}`
-6. `POST /approve-gate`
-7. `GET /history`
-8. `GET /health`
+4. `GET /task-status/{project_id}`
+5. `POST /approve-gate`
+6. `GET /history`
+7. `GET /health`
 
 Detailed request/response contracts: `docs/api-contracts.md`.
 
-## How Task Assignment Picks Claude vs Codex
-
-Assignment is deterministic and role-driven.
-
-1. Action plan generation assigns task role (`agent_role`) when possible.
-2. If a task has no `agent_role`, phase defaults apply: `discovery -> orchestrator`, `build -> delivery`, `verify -> quality`, `ship -> orchestrator`.
-3. Worker pool maps role to host using config `policy.role_host_map`.
-4. Default role-to-host map is `orchestrator -> claude_desktop`, `research -> claude_desktop`, `quality -> codex_desktop`, `delivery -> codex_desktop`.
-5. If mapped host is unavailable, fallback is round-robin across available adapters.
-6. Execution backend depends on adapter mode: `native_cli` (real CLI calls to `claude` / `codex`) or `mock` (local simulated execution).
-7. If `policy.remote_worker_endpoints` is configured, execution is forwarded to workers, but host choice still follows role-to-host mapping first.
-
-### Config Example
+## Config Example
 ```toml
 [policy]
-role_host_map = "orchestrator:claude_desktop,research:claude_desktop,quality:codex_desktop,delivery:codex_desktop"
-adapter_mode = "native_cli"
-worker_pool_size = 6
-remote_worker_endpoints = ""
+role_host_map = "orchestrator:claude_desktop,research:claude_desktop,quality:claude_desktop,delivery:claude_desktop"
+adapter_mode = "claude_desktop"
+worker_pool_size = 1
+default_industry = ""
 ```

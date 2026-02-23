@@ -6,7 +6,7 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-HostTarget = Literal["claude_desktop", "codex_desktop"]
+HostTarget = Literal["claude_desktop"]
 
 
 class ProjectState(str, Enum):
@@ -23,10 +23,18 @@ class EndReason(str, Enum):
     CANCELLED = "cancelled"
 
 
+class TaskState(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
 class StartProjectRequest(BaseModel):
     workspace_path: str
     brief_path: str
-    host_targets: List[HostTarget] = Field(default_factory=lambda: ["claude_desktop", "codex_desktop"])
+    host_targets: List[HostTarget] = Field(default_factory=lambda: ["claude_desktop"])
 
 
 class SkillReason(BaseModel):
@@ -74,6 +82,9 @@ class BriefIntent(BaseModel):
     risk_tier: Literal["low", "medium", "high"] = "medium"
     evidence_level: Literal["standard", "strict"] = "standard"
     deliverables: List[str] = Field(default_factory=list)
+    industry: str = ""
+    project_type: str = ""
+    pod_hints: List[str] = Field(default_factory=list)
     raw_text: str
 
     @field_validator("raw_text")
@@ -89,7 +100,7 @@ class SkillMetadata(BaseModel):
     name: str
     description: str
     tags: List[str] = Field(default_factory=list)
-    hosts: List[HostTarget] = Field(default_factory=lambda: ["claude_desktop", "codex_desktop"])
+    hosts: List[HostTarget] = Field(default_factory=lambda: ["claude_desktop"])
     dependencies: List[str] = Field(default_factory=list)
     conflicts: List[str] = Field(default_factory=list)
     source_repo: str
@@ -129,7 +140,7 @@ class HealthResponse(BaseModel):
     service_time: datetime
     last_snapshot_hash: Optional[str] = None
     user_mode: Literal["standard", "admin"] = "standard"
-    adapter_mode: str = "mock"
+    adapter_mode: str = "claude_desktop"
     worker_pool_size: int = 0
     remote_worker_count: int = 0
 
@@ -147,19 +158,6 @@ class AdapterResult(BaseModel):
     host: HostTarget
     success: bool
     message: str
-
-
-class RunProjectRequest(BaseModel):
-    project_id: str
-    auto_approve_gates: bool = True
-
-
-class RunProjectResponse(BaseModel):
-    project_id: str
-    run_id: str
-    status: Literal["completed", "blocked", "failed"]
-    executed_tasks: int
-    pending_gates: List[str] = Field(default_factory=list)
 
 
 class ApproveGateRequest(BaseModel):
@@ -185,3 +183,46 @@ class TaskStatusResponse(BaseModel):
     summary: Dict[str, object] = Field(default_factory=dict)
     tasks: List[Dict[str, object]] = Field(default_factory=list)
     approvals: List[Dict[str, object]] = Field(default_factory=list)
+
+
+# --- Pod and task instruction models ---
+
+
+class PodAssignment(BaseModel):
+    """A pod attached to a project with its selected agents."""
+    pod_id: str
+    pod_name: str
+    agents: List[str] = Field(default_factory=list)
+    kernel_id: Optional[str] = None
+    always_on: bool = False
+
+
+class TaskInstruction(BaseModel):
+    """A single task with full context for Claude Desktop to execute."""
+    task_id: str
+    title: str
+    phase: str
+    state: TaskState = TaskState.PENDING
+    pod_id: str = ""
+    agent: str = ""
+    skill_id: str = ""
+    instructions: str = ""
+    acceptance_criteria: List[str] = Field(default_factory=list)
+    inputs: List[str] = Field(default_factory=list)
+    outputs: List[str] = Field(default_factory=list)
+    guardrails: List[str] = Field(default_factory=list)
+    order_index: int = 0
+
+
+class CompleteTaskRequest(BaseModel):
+    project_id: str
+    task_id: str
+    summary: str = ""
+    artifacts: List[str] = Field(default_factory=list)
+    evidence: Dict[str, object] = Field(default_factory=dict)
+
+
+class SkipTaskRequest(BaseModel):
+    project_id: str
+    task_id: str
+    reason: str = ""
