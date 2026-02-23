@@ -16,12 +16,14 @@ SERVER_INSTRUCTIONS = (
     "Routes project skills from project_brief.md, manages activation lifecycle, "
     "and exposes a task-by-task execution model for Claude Desktop.\n\n"
     "Workflow:\n"
-    "1. Call sa_start_project to create a project and get the first task.\n"
-    "2. Work on the task using the instructions provided. Produce real, concrete files — not just documentation about what to build.\n"
-    "3. Call sa_complete_task when done, or sa_skip_task to skip.\n"
-    "4. Call sa_next_task to get the next task.\n"
-    "5. Repeat until all tasks are complete.\n"
-    "6. Call sa_end_project to close the project."
+    "1. Call sa_start_project to create a project. This returns the full task list and deliverables for review — execution does NOT start yet.\n"
+    "2. Present the task list and deliverables to the user for approval.\n"
+    "3. Once the user approves, call sa_approve_plan to start execution and get the first task.\n"
+    "4. Work on the task using the instructions provided. Produce real, concrete files — not just documentation about what to build.\n"
+    "5. Call sa_complete_task when done, or sa_skip_task to skip.\n"
+    "6. Call sa_next_task to get the next task.\n"
+    "7. Repeat until all tasks are complete.\n"
+    "8. Call sa_end_project to close the project."
 )
 
 mcp = FastMCP(name=SERVER_NAME, instructions=SERVER_INSTRUCTIONS, log_level="WARNING")
@@ -49,7 +51,8 @@ def _get_engine() -> SkillAutopilotEngine:
     name="sa_start_project",
     description=(
         "Start a project from a workspace brief. Parses the brief, selects pods and B-kernels, "
-        "generates a pod-aware action plan, and returns the first task with full instructions."
+        "generates a pod-aware action plan, and returns the task list and deliverables for review. "
+        "Execution does NOT start — call sa_approve_plan after user approval to begin."
     ),
 )
 def mcp_start_project(
@@ -66,38 +69,109 @@ def mcp_start_project(
         )
     )
     plan = engine.db.get_latest_plan(response.project_id)
-    project = engine.db.get_project(response.project_id) or {}
-    brief_diag = validate_brief_path(project.get("brief_path", resolved_brief))
-    workspace_diag = resolve_workspace_path(project.get("workspace_path", workspace_path))
-
     plan_json = plan["plan_json"] if plan else {}
 
-    # Start a run and get the first task.
-    first_task = None
-    run_id = None
-    checklist_text = ""
-    if plan:
-        route = engine.db.get_latest_route(response.project_id)
-        run_id = engine.task_machine.start_run(
-            project_id=response.project_id,
-            plan_id=plan["plan_id"],
-            route_id=route["route_id"] if route else None,
-        )
-        first_task = engine.task_machine.next_task(response.project_id)
-        checklist = engine.task_machine.task_checklist(response.project_id)
-        checklist_text = checklist.get("text", "")
+    # Build plan preview for user approval (do NOT start a run yet).
+    task_preview = _format_plan_preview(plan_json)
 
     return {
         "project_id": response.project_id,
-        "status": response.status,
-        "task_list": checklist_text,
+        "status": "pending_approval",
         "plan_id": response.plan_id,
-        "run_id": run_id,
         "industry": plan_json.get("summary", {}).get("industry", ""),
         "kernels": plan_json.get("kernels", []),
         "pods": plan_json.get("pods", []),
-        "selected_skills": [item.model_dump() for item in response.selected_skills],
         "plan_summary": plan_json.get("summary", {}),
+        "task_list": task_preview["task_list"],
+        "deliverables": task_preview["deliverables"],
+        "task_count": task_preview["task_count"],
+        "message": (
+            "Plan generated. Present the task list and deliverables to the user for review. "
+            "Once approved, call sa_approve_plan to start execution."
+        ),
+    }
+
+
+def _format_plan_preview(plan_json: Dict[str, Any]) -> Dict[str, Any]:
+    """Format plan phases/tasks/deliverables for user review before approval."""
+    phases = plan_json.get("phases", [])
+    lines: List[str] = []
+    deliverables: List[str] = []
+    task_count = 0
+
+    for phase in phases:
+        phase_name = phase.get("name", "build")
+        lines.append(f"\n## {phase_name.title()}")
+        for task in phase.get("tasks", []):
+            task_count += 1
+            title = task.get("title", task.get("task_id", "?"))
+            lines.append(f"  [ ] {title}")
+            for output in task.get("outputs", []):
+                if output not in deliverables:
+                    deliverables.append(output)
+
+    lines.insert(0, f"# Plan Overview: {task_count} tasks")
+
+    if deliverables:
+        lines.append("\n## Deliverables")
+        for d in deliverables:
+            lines.append(f"  - {d}")
+
+    return {
+        "task_list": "\n".join(lines),
+        "deliverables": deliverables,
+        "task_count": task_count,
+    }
+
+
+@mcp.tool(
+    name="sa_approve_plan",
+    description=(
+        "Approve the generated plan and start execution. Call this after the user reviews "
+        "the task list from sa_start_project. Returns the first task with full instructions."
+    ),
+)
+def mcp_approve_plan(project_id: str) -> Dict[str, Any]:
+    engine = _get_engine()
+    plan = engine.db.get_latest_plan(project_id)
+    if not plan:
+        return {"project_id": project_id, "status": "error", "message": "No plan found for this project."}
+
+    # Check if a run already exists (idempotency guard).
+    existing_run = engine.db.get_latest_project_run(project_id)
+    if existing_run:
+        # Run already started — just return the next task.
+        first_task = engine.task_machine.next_task(project_id)
+        checklist = engine.task_machine.task_checklist(project_id)
+        return {
+            "project_id": project_id,
+            "status": "already_started",
+            "run_id": existing_run["run_id"],
+            "task_list": checklist.get("text", ""),
+            "first_task": first_task,
+        }
+
+    # Start the run.
+    route = engine.db.get_latest_route(project_id)
+    run_id = engine.task_machine.start_run(
+        project_id=project_id,
+        plan_id=plan["plan_id"],
+        route_id=route["route_id"] if route else None,
+    )
+    first_task = engine.task_machine.next_task(project_id)
+    checklist = engine.task_machine.task_checklist(project_id)
+
+    engine.db.add_audit_event(
+        event_type="plan.approved",
+        project_id=project_id,
+        payload={"plan_id": plan["plan_id"], "run_id": run_id},
+    )
+
+    return {
+        "project_id": project_id,
+        "status": "started",
+        "run_id": run_id,
+        "task_list": checklist.get("text", ""),
         "first_task": first_task,
     }
 

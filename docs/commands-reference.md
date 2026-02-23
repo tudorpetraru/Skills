@@ -114,11 +114,17 @@ All tool names are namespaced with `sa_`.
 ### Task Workflow (primary flow)
 
 #### `sa_start_project`
-Parses the brief, selects pods and B-kernels, generates a pod-aware plan, and returns the first task.
+Parses the brief, selects pods and B-kernels, generates a pod-aware plan, and returns the task list and deliverables for user review. Execution does NOT start — call `sa_approve_plan` after approval.
 
 Arguments:
 1. `workspace_path` (required): project directory path.
 2. `brief_path` (optional): brief file path. Default: `<workspace_path>/project_brief.md`.
+
+#### `sa_approve_plan`
+Approves the generated plan and starts execution. Returns the first task with full instructions.
+
+Arguments:
+1. `project_id` (required).
 
 #### `sa_next_task`
 Returns the next pending task with full instructions, pod context, acceptance criteria, and progress.

@@ -5,11 +5,12 @@ Base URL: `http://127.0.0.1:8787`
 This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 
 ### Task workflow
-1. `sa_start_project` — parse brief, select pods, return first task
-2. `sa_next_task` — get next pending task
-3. `sa_complete_task` — mark done, return next
-4. `sa_skip_task` — skip, return next
-5. `sa_approve_gate` — unblock gated phases
+1. `sa_start_project` — parse brief, select pods, return task list + deliverables for review
+2. `sa_approve_plan` — approve the plan and start execution, returns first task
+3. `sa_next_task` — get next pending task
+4. `sa_complete_task` — mark done, return next
+5. `sa_skip_task` — skip, return next
+6. `sa_approve_gate` — unblock gated phases
 
 ### Lifecycle
 6. `sa_project_status`
@@ -27,11 +28,12 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 16. `sa_reconcile_stale_projects`
 
 ## MCP Execution Model
-1. `sa_start_project` parses the brief, selects pods/kernels, generates a plan, starts a run, and returns the first task.
-2. Claude Desktop works through tasks by calling `sa_complete_task` or `sa_skip_task`.
-3. `sa_next_task` returns the next pending task with instructions, acceptance criteria, and a `task_list` checklist.
-4. Phase gates auto-approve when all tasks in the gated phase complete. Use `sa_approve_gate` for manual overrides.
-5. When all tasks are done, `sa_next_task` returns `status: "all_complete"`.
+1. `sa_start_project` parses the brief, selects pods/kernels, generates a plan, and returns the task list + deliverables for user review. Status is `pending_approval`.
+2. The user reviews the plan. Once approved, call `sa_approve_plan` to start execution and get the first task.
+3. Claude Desktop works through tasks by calling `sa_complete_task` or `sa_skip_task`.
+4. `sa_next_task` returns the next pending task with instructions, acceptance criteria, and a `task_list` checklist.
+5. Phase gates auto-approve when all tasks in the gated phase complete. Use `sa_approve_gate` for manual overrides.
+6. When all tasks are done, `sa_next_task` returns `status: "all_complete"`.
 
 ## MCP Observability (Claude-side monitoring)
 1. `sa_observability_overview` gives a DB-only live view of active projects with `classification=progressing|stale`.
@@ -55,11 +57,10 @@ Response:
 ```json
 {
   "project_id": "string",
-  "selected_skills": [{"skill_id":"string", "reason":"string"}],
+  "status": "pending_approval",
   "plan_id": "string",
-  "status": "started",
-  "task_list": "# Task Progress: 0/12 complete\n...",
-  "first_task": {"status": "ready", "task": {...}}
+  "task_list": "# Plan Overview: 12 tasks\n...",
+  "deliverables": ["REST API spec", "Database schema", "..."]
 }
 ```
 

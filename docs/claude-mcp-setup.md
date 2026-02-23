@@ -32,9 +32,10 @@ After restart, Claude should list these MCP tools:
 
 ### Task workflow
 1. `sa_start_project`
-2. `sa_next_task`
-3. `sa_complete_task`
-4. `sa_skip_task`
+2. `sa_approve_plan`
+3. `sa_next_task`
+4. `sa_complete_task`
+5. `sa_skip_task`
 
 ### Lifecycle
 5. `sa_project_status`
@@ -53,15 +54,17 @@ After restart, Claude should list these MCP tools:
 16. `sa_reconcile_stale_projects`
 
 ## 4) Example usage in Claude
-1. Call `sa_start_project` with `workspace_path`. Returns the first task with full instructions.
-2. Work on the task following the instructions, acceptance criteria, and guardrails.
-3. Call `sa_complete_task` with `project_id`, `task_id`, and a `summary` of what you did.
-4. The response includes the `next` task. Work through it the same way.
-5. If `sa_next_task` returns `status: "blocked"`, call `sa_approve_gate` to unblock the phase.
-6. Continue until `sa_next_task` returns `status: "all_complete"`.
-7. Call `sa_end_project` when done.
-8. If a brief path fails, call `sa_validate_brief_path` for resolution diagnostics.
-9. Use `sa_observability_overview` to monitor live projects and detect stale runs.
+1. Call `sa_start_project` with `workspace_path`. Returns the task list and deliverables for review (execution does NOT start yet).
+2. Present the task list and deliverables to the user for approval.
+3. Once approved, call `sa_approve_plan` with `project_id` to start execution and get the first task.
+4. Work on the task following the instructions, acceptance criteria, and guardrails.
+5. Call `sa_complete_task` with `project_id`, `task_id`, and a `summary` of what you did.
+6. The response includes the `next` task. Work through it the same way.
+7. If `sa_next_task` returns `status: "blocked"`, call `sa_approve_gate` to unblock the phase.
+8. Continue until `sa_next_task` returns `status: "all_complete"`.
+9. Call `sa_end_project` when done.
+10. If a brief path fails, call `sa_validate_brief_path` for resolution diagnostics.
+11. Use `sa_observability_overview` to monitor live projects and detect stale runs.
 
 ## Notes
 - For LLM-powered industry detection, install the optional `anthropic` dependency (`pip install -e '.[llm]'`) and add `ANTHROPIC_API_KEY` to the MCP server env in `claude_desktop_config.json`:
