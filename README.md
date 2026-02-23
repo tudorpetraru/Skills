@@ -8,7 +8,7 @@ Local-first project skill orchestration for Claude Desktop workflows.
 3. MCP server (`skill-autopilot-mcp`) for Claude Desktop integration.
 4. Deterministic routing from `project_brief.md`.
 5. Lease lifecycle and local SQLite audit history.
-6. Pod architecture: Core pod (always-on) + attachable pods + B-kernels + industry mapping.
+6. Pod architecture: Core pod (always-on) + attachable pods + B-kernels + 41-industry mapping.
 7. Task-by-task execution model: Claude Desktop works through plans via MCP tools.
 
 ## macOS install (recommended)
@@ -76,8 +76,9 @@ See: `docs/commands-reference.md`
 Every project gets the **Core pod** (always-on: orchestrator, scribe, research, quality, delivery tracker) plus automatically selected **attachable pods** and **B-kernels** based on industry detection and brief analysis.
 
 - **7 attachable pods**: Discovery, Commercial, Finance & Governance, Legal/Risk, People & Talent, Ops & Supply, Data & Insight.
-- **14 B-kernels**: Digital Product, Data & Analytics, ML/AI Systems, Cyber & SecOps, Embedded, Safety-Critical, Manufacturing, Chem/Materials, Life Sciences, Energy & Asset Ops, Financial Products, Construction, Content Production, Professional Services.
-- **40-industry mapping**: brief text is auto-classified to an industry, which selects default kernel(s).
+- **14 B-kernels** (all with SKILL.md): Digital Product, Data & Analytics, ML/AI Systems, Cyber & SecOps, Embedded, Safety-Critical, Manufacturing, Chem/Materials, Life Sciences, Energy & Asset Ops, Financial Products, Construction, Content Production, Professional Services.
+- **41-industry mapping**: brief text is auto-classified to an industry, which selects default kernel(s) and attaches domain-appropriate pods.
+- **Full architecture guide**: see `docs/pod-system.md` for the complete pipeline, mapping tables, and how to add new industries.
 
 ## LLM-powered industry detection (optional)
 For best results with unstructured briefs, set your Anthropic API key:
@@ -100,7 +101,7 @@ When set, a fast Claude Haiku call classifies the industry from the full brief t
 2. DB: `~/.project-skill-router/state.db`
 3. Service URL: `http://127.0.0.1:8787`
 4. Catalog preference: packaged `skill_autopilot/skills` library first, then optional local catalogs.
-5. Curated catalog breadth: 115 skills across 18 categories (see `docs/skill-library.md`).
+5. Curated catalog breadth: 128 skills across 18 categories (see `docs/skill-library.md`).
 
 ## Docs
 1. macOS install guide: `docs/install-macos.md`
@@ -108,7 +109,8 @@ When set, a fast Claude Haiku call classifies the industry from the full brief t
 3. API contracts: `docs/api-contracts.md`
 4. Commands reference: `docs/commands-reference.md`
 5. Skill library map: `docs/skill-library.md`
-6. Capability matrix: `docs/capability-matrix.md`
+6. Pod system guide: `docs/pod-system.md`
+7. Capability matrix: `docs/capability-matrix.md`
 
 ## Routing defaults
 1. Excludes `.system*` skills.

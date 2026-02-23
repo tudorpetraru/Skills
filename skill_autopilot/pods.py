@@ -250,6 +250,56 @@ INDUSTRY_KERNEL_MAP: Dict[str, List[str]] = {
     "Payments / Fintech": ["financial_products", "digital_product"],
     "Insurance": ["financial_products", "data_analytics"],
     "Capital Markets / Asset Mgmt": ["financial_products", "ml_ai_systems"],
+    "Political Consulting / Public Affairs": ["professional_services", "content_production"],
+}
+
+
+# ---------------------------------------------------------------------------
+# §5.1 — Industry → default pod mapping
+# ---------------------------------------------------------------------------
+
+INDUSTRY_POD_MAP: Dict[str, List[str]] = {
+    "Pharmaceuticals": ["legal_risk", "finance_governance"],
+    "Biotech": ["legal_risk"],
+    "Medical Devices": ["legal_risk"],
+    "CRO / Clinical Trials Services": ["legal_risk"],
+    "Healthcare Providers (hospitals/clinics)": ["data_insight"],
+    "Health Insurance / Payers": ["legal_risk", "finance_governance"],
+    "Banking (retail/commercial)": ["legal_risk", "finance_governance"],
+    "Payments / Fintech": ["legal_risk", "finance_governance"],
+    "Insurance": ["legal_risk", "finance_governance"],
+    "Capital Markets / Asset Mgmt": ["finance_governance", "data_insight"],
+    "Defense": ["legal_risk", "ops_supply"],
+    "Aerospace": ["legal_risk", "ops_supply"],
+    "Space (launch/satellites)": ["legal_risk", "ops_supply"],
+    "Semiconductors": ["ops_supply"],
+    "Automotive (OEM & mobility)": ["ops_supply"],
+    "Oil & Gas (upstream)": ["ops_supply", "legal_risk"],
+    "Oil & Gas (midstream)": ["ops_supply"],
+    "Refining / Petrochemicals": ["ops_supply", "legal_risk"],
+    "Chemicals (specialty/commodity)": ["legal_risk", "ops_supply"],
+    "Materials (advanced materials)": ["ops_supply"],
+    "Construction (GC / EPC)": ["ops_supply", "finance_governance"],
+    "Real Estate (dev/property mgmt)": ["finance_governance"],
+    "Mining & Metals": ["ops_supply"],
+    "Power generation (incl. nuclear)": ["legal_risk", "ops_supply"],
+    "Renewables (wind/solar/storage)": ["ops_supply"],
+    "Utilities (electric/gas/water)": ["ops_supply"],
+    "Consumer Packaged Goods (CPG)": ["commercial", "ops_supply"],
+    "Food & Beverage Manufacturing": ["ops_supply"],
+    "Retail (physical)": ["commercial", "ops_supply"],
+    "E-commerce / Marketplaces": ["commercial", "data_insight"],
+    "Software / SaaS": ["commercial"],
+    "IT Services / Systems Integration": ["commercial"],
+    "Telecommunications": ["ops_supply"],
+    "Cloud / Data Centers": ["ops_supply"],
+    "Cybersecurity (vendors)": ["legal_risk"],
+    "Consumer Electronics": ["commercial", "ops_supply"],
+    "Logistics / 3PL": ["ops_supply"],
+    "Agriculture": ["ops_supply"],
+    "Maritime / Shipping": ["ops_supply"],
+    "Rail / Transit": ["ops_supply", "legal_risk"],
+    "Political Consulting / Public Affairs": ["commercial", "legal_risk", "data_insight"],
 }
 
 
@@ -296,6 +346,15 @@ def select_pods(
             continue
         if any(kw in text_lower for kw in keywords):
             selected[pod_id] = ALL_ATTACHABLE_PODS[pod_id]
+
+    # Industry-based pod attachment.
+    if industry:
+        for ind_name, pod_ids in INDUSTRY_POD_MAP.items():
+            if industry.lower().strip() in ind_name.lower():
+                for pid in pod_ids:
+                    if pid not in selected and pid in ALL_ATTACHABLE_PODS:
+                        selected[pid] = ALL_ATTACHABLE_PODS[pid]
+                break
 
     return selected
 
@@ -555,6 +614,12 @@ _INDUSTRY_SIGNALS_WEIGHTED: list[tuple[str, list[tuple[str, float]]]] = [
         # Generic terms get LOW weight — they shouldn't override specific industry signals.
         ("platform", 0.2), ("web app", 0.2), ("api", 0.15),
         ("mobile app", 0.2), ("dashboard", 0.15),
+    ]),
+    ("Political Consulting / Public Affairs", [
+        ("political", 0.8), ("campaign", 0.7), ("public affairs", 1.0),
+        ("lobbying", 1.0), ("government relations", 1.0), ("policy advocacy", 1.0),
+        ("political consulting", 1.0), ("pac ", 0.9), ("voter", 0.8),
+        ("election", 0.7), ("constituent", 0.8), ("legislation", 0.6),
     ]),
 ]
 

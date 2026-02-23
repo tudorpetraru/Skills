@@ -22,7 +22,7 @@ Your brief needs three sections with headers:
 ## What Makes a Brief *Good*
 
 ### Be specific about your domain
-The system auto-detects your industry and selects kernels accordingly. Mention your domain explicitly:
+The system auto-detects your industry from 41 supported industries and selects kernels and pods accordingly. Mention your domain explicitly (see `docs/pod-system.md` for the full industry list):
 
 > ❌ "Build an app"
 > ✅ "Build a patient intake portal for a dental clinic"

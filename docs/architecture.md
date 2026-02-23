@@ -13,10 +13,11 @@
   5. Pod-aware decomposition plan generation.
   6. Audit event persistence.
 3. Pod System:
-  1. Core pod (always-on): orchestrator, scribe, research, quality, delivery tracker.
-  2. 7 attachable pods: Discovery, Commercial, Finance, Legal, People, Ops, Data.
-  3. 14 B-kernel families for domain-specific delivery.
-  4. 40-industry mapping for automatic kernel selection.
+   1. Core pod (always-on): orchestrator, scribe, research, quality, delivery tracker.
+   2. 7 attachable pods: Discovery, Commercial, Finance, Legal, People, Ops, Data.
+   3. 14 B-kernel families for domain-specific delivery (all with SKILL.md).
+   4. 41-industry mapping for automatic kernel + pod selection.
+   5. See `docs/pod-system.md` for full pipeline and mapping tables.
 4. MCP Integration Server:
   1. `skill-autopilot-mcp` tool server over stdio/SSE/streamable-http.
   2. Task-by-task execution model: Claude Desktop is the primary agent.
@@ -46,7 +47,7 @@
 3. Brief parser detects industry, project type, and pod hints.
 4. Catalog manager builds skill snapshot from allowlisted sources.
 5. Router scores and composes compatible skill set.
-6. Pod selector attaches Core pod + relevant attachable pods + B-kernel(s).
+6. Pod selector attaches Core pod + industry-matched pods + keyword-matched pods + B-kernel(s).
 7. Decomposer builds pod-aware action plan with per-task instructions.
 8. Lease manager activates selected skills on Claude Desktop host.
 9. Task state machine starts run and returns first task.

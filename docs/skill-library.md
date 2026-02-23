@@ -6,7 +6,7 @@ Default runtime catalog root:
 Repository source catalog:
 `library/skills`
 
-Total curated skills: **115**
+Total curated skills: **128**
 
 ## Skill Quality Standard
 Each `SKILL.md` now includes a full job description contract:
@@ -34,7 +34,7 @@ Each `SKILL.md` now includes a full job description contract:
 10. `frontend`: 5 skills
 11. `governance`: 9 skills
 12. `integration`: 6 skills
-13. `kernel`: 1 skills
+13. `kernel`: 14 skills
 14. `legal`: 2 skills
 15. `mobile`: 4 skills
 16. `ops`: 9 skills
@@ -142,7 +142,14 @@ Each `SKILL.md` now includes a full job description contract:
 6. `integration.webhook_orchestrator`
 
 ### Kernel
-1. `kernel.digital_product`
+1. `kernel.chem_materials`
+2. `kernel.construction_infra`
+3. `kernel.content_production`
+4. `kernel.cyber_secops`
+5. `kernel.data_analytics`
+6. `kernel.digital_product`
+7. `kernel.embedded_mechatronics`
+8. `...` (7 more)
 
 ### Legal
 1. `legal.compliance_checklist`

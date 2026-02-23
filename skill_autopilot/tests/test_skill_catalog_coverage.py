@@ -53,3 +53,21 @@ def test_repo_and_packaged_skill_catalogs_are_mirrored() -> None:
         right = (packaged_catalog / rel).read_text(encoding="utf-8")
         assert left == right, str(rel)
 
+
+def test_every_b_kernel_has_catalog_skill() -> None:
+    """Every B-kernel defined in pods.py must have a corresponding kernel.<id> skill."""
+    from skill_autopilot.pods import B_KERNELS
+
+    repo_root = Path(__file__).resolve().parents[2]
+    packaged_root = repo_root / "skill_autopilot" / "skills"
+    skills, _ = load_catalog([CatalogSource(name="local_library", path=str(packaged_root), pinned_ref="test")])
+    skill_ids = {item.skill_id for item in skills}
+
+    missing = []
+    for kernel_id in B_KERNELS:
+        expected_skill = f"kernel.{kernel_id}"
+        if expected_skill not in skill_ids:
+            missing.append(expected_skill)
+
+    assert not missing, f"B-kernels missing catalog skills: {missing}"
+
