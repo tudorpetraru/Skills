@@ -246,7 +246,8 @@ def _build_tasks(
         instructions=(
             "Using discovery outputs, create a detailed execution plan.\n"
             "Define task graph with dependencies, owners, and acceptance gates.\n"
-            "Identify parallelizable work and critical path."
+            "Identify parallelizable work and critical path.\n"
+            "NOTE: This is the only planning-only task. All subsequent build tasks must produce real, working implementation files."
         ),
         acceptance_criteria=[
             "Task dependencies are explicit",
@@ -267,10 +268,11 @@ def _build_tasks(
             agent="builder",
             skill_id=f"kernel.{kernel.kernel_id}",
             instructions=(
-                f"Execute the {kernel.name} build plan.\n"
+                f"Implement the actual deliverables for {kernel.name} — write real, working files.\n"
                 f"Description: {kernel.description}\n"
-                "Produce deliverables as defined in the execution plan.\n"
-                "Follow the Universal B interface: requirements → plan → deliverables → V&V → change control."
+                "Do NOT produce documentation about what to build; produce the actual artifacts.\n"
+                "Read the execution plan and build the code, configs, schemas, or other concrete outputs it specifies.\n"
+                "Save all outputs into the workspace directory."
             ),
             acceptance_criteria=[
                 "Deliverables produced per execution plan",
@@ -295,9 +297,10 @@ def _build_tasks(
             agent=sid.split(".")[-1] if "." in sid else sid,
             skill_id=sid,
             instructions=(
-                f"Execute the {sid} skill as part of the build phase.\n"
+                f"Implement the concrete outputs for {sid}.\n"
                 f"Context: {skill.reason}\n"
-                "Produce outputs aligned with project goals and acceptance criteria."
+                "Write real, working files \u2014 not documentation about what to write.\n"
+                "Save outputs to the workspace directory alongside other project files."
             ),
             acceptance_criteria=["Output aligned with project goals"],
             inputs=["execution_plan.md"],
@@ -345,8 +348,8 @@ def _verify_tasks(
         skill_id="core.quality",
         instructions=(
             "Review all deliverables against acceptance criteria.\n"
-            "Run quality checklists, find gaps, and stress-test plans.\n"
-            "Surface risks and contradictions.\n"
+            "Actually inspect the produced files \u2014 open them, check they work, verify content.\n"
+            "Run any test suites, linters, or validation scripts that exist.\n"
             "Produce a quality report with pass/fail status per deliverable."
         ),
         acceptance_criteria=[
@@ -370,6 +373,7 @@ def _verify_tasks(
             instructions=(
                 f"Perform domain-specific verification for {kernel.name}.\n"
                 f"Description: {kernel.description}\n"
+                "Actually inspect the deliverable files and run validation checks.\n"
                 "Check compliance with domain standards and evidence requirements.\n"
                 "Validate that all readiness gates are satisfied."
             ),
@@ -400,9 +404,10 @@ def _ship_tasks(
         agent="delivery_tracker",
         skill_id="core.delivery_tracker",
         instructions=(
-            "Compile all deliverables into final package.\n"
-            "Produce closure summary with: what was delivered, what was deferred, "
-            "lessons learned, and recommended next steps."
+            "Compile all deliverables into a final package in the workspace.\n"
+            "Verify all output files are present and correctly organized.\n"
+            "Produce a closure summary listing: what was delivered (with file paths), "
+            "what was deferred, lessons learned, and recommended next steps."
         ),
         acceptance_criteria=[
             "All planned deliverables accounted for",
@@ -466,6 +471,7 @@ def _make_task(
             "Do not invent facts or metrics.",
             "State assumptions and confidence clearly.",
             "Prefer smallest viable scope that meets the objective.",
+            "Save all output files to the workspace root directory, not in subdirectories, unless the task explicitly requires a directory structure.",
         ],
         "order_index": 0,
     }

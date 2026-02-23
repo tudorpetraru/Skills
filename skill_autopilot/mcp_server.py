@@ -17,7 +17,7 @@ SERVER_INSTRUCTIONS = (
     "and exposes a task-by-task execution model for Claude Desktop.\n\n"
     "Workflow:\n"
     "1. Call sa_start_project to create a project and get the first task.\n"
-    "2. Work on the task using the instructions provided.\n"
+    "2. Work on the task using the instructions provided. Produce real, concrete files — not just documentation about what to build.\n"
     "3. Call sa_complete_task when done, or sa_skip_task to skip.\n"
     "4. Call sa_next_task to get the next task.\n"
     "5. Repeat until all tasks are complete.\n"
