@@ -348,58 +348,237 @@ def select_kernels(
 
 
 def detect_industry(text: str) -> str:
-    """Best-effort industry detection from brief text.
+    """Detect industry from brief text.
 
-    Returns the matching industry name or empty string.
+    Two-tier approach:
+      1. LLM classification via Anthropic API (when ANTHROPIC_API_KEY is set).
+      2. Weighted keyword scoring fallback.
+    """
+    # Tier 1: LLM classification (fast, precise).
+    llm_result = _detect_industry_llm(text)
+    if llm_result:
+        return llm_result
+
+    # Tier 2: Weighted keyword scoring.
+    return _detect_industry_keywords(text)
+
+
+def _detect_industry_llm(text: str) -> str:
+    """Classify industry using Claude Haiku. Returns empty string on failure."""
+    import os
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return ""
+
+    try:
+        import anthropic  # noqa: F811
+    except ImportError:
+        return ""
+
+    industries = list(INDUSTRY_KERNEL_MAP.keys())
+    industries_text = "\n".join(f"- {name}" for name in industries)
+
+    prompt = (
+        "You are an industry classifier. Given a project brief, identify the single "
+        "best-matching industry from the list below. Reply with ONLY the industry name, "
+        "exactly as written. If none match well, reply NONE.\n\n"
+        f"Industries:\n{industries_text}\n\n"
+        f"Project brief:\n{text[:3000]}"
+    )
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-20250414",
+            max_tokens=80,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = message.content[0].text.strip()
+        if answer == "NONE" or answer not in INDUSTRY_KERNEL_MAP:
+            # Try fuzzy match (LLM might slightly rephrase).
+            answer_lower = answer.lower()
+            for name in industries:
+                if answer_lower in name.lower() or name.lower() in answer_lower:
+                    return name
+            return ""
+        return answer
+    except Exception:
+        return ""
+
+
+# Weighted keyword signals: (keyword, weight).
+# Higher weight = more specific signal. Generic terms get low weight.
+_INDUSTRY_SIGNALS_WEIGHTED: list[tuple[str, list[tuple[str, float]]]] = [
+    ("Pharmaceuticals", [
+        ("pharmaceutical", 1.0), ("drug development", 1.0), ("clinical trial", 0.8),
+        ("fda approval", 0.9), ("drug candidate", 1.0), ("pharma", 0.9),
+    ]),
+    ("Biotech", [
+        ("biotech", 1.0), ("gene therapy", 1.0), ("cell therapy", 1.0),
+        ("biologic", 0.8), ("crispr", 1.0),
+    ]),
+    ("Medical Devices", [
+        ("medical device", 1.0), ("class ii", 0.8), ("class iii", 0.8),
+        ("510(k)", 1.0), ("implant", 0.6),
+    ]),
+    ("CRO / Clinical Trials Services", [
+        ("cro ", 0.9), ("contract research", 1.0), ("clinical trial manage", 0.9),
+    ]),
+    ("Healthcare Providers (hospitals/clinics)", [
+        ("hospital", 0.8), ("clinic", 0.7), ("healthcare provider", 1.0),
+        ("patient care", 0.9), ("patient intake", 0.9), ("ehr ", 0.8),
+        ("electronic health", 0.9), ("dental", 0.8), ("medical practice", 0.9),
+        ("telemedicine", 0.9), ("telehealth", 0.9), ("health record", 0.8),
+        ("doctor", 0.5), ("nurse", 0.5), ("appointment", 0.4),
+    ]),
+    ("Health Insurance / Payers", [
+        ("health insurance", 1.0), ("payer", 0.7), ("claims processing", 1.0),
+    ]),
+    ("Capital Markets / Asset Mgmt", [
+        ("capital market", 1.0), ("asset management", 0.9), ("trading", 0.7),
+        ("portfolio", 0.6), ("hedge fund", 1.0), ("quant", 0.7),
+    ]),
+    ("Banking (retail/commercial)", [
+        ("banking", 0.8), ("retail bank", 1.0), ("commercial bank", 1.0),
+        ("loan origination", 0.9), ("deposit", 0.5), ("mortgage", 0.8),
+    ]),
+    ("Payments / Fintech", [
+        ("payment processing", 1.0), ("fintech", 1.0), ("neobank", 1.0),
+        ("payment gateway", 0.9), ("digital wallet", 0.9), ("stripe", 0.6),
+        ("checkout", 0.5),
+    ]),
+    ("Insurance", [
+        ("insurance", 0.8), ("underwriting", 1.0), ("actuarial", 1.0),
+        ("claims", 0.5), ("policy premium", 0.9),
+    ]),
+    ("Cybersecurity (vendors)", [
+        ("cybersecurity", 1.0), ("threat detection", 1.0), ("soc ", 0.7),
+        ("siem", 1.0), ("vulnerability", 0.6), ("pentest", 0.8),
+    ]),
+    ("Semiconductors", [
+        ("semiconductor", 1.0), ("chip design", 1.0), ("wafer", 1.0),
+        ("fab ", 0.6), ("asic", 1.0), ("fpga", 0.8),
+    ]),
+    ("Aerospace", [
+        ("aerospace", 1.0), ("aircraft", 0.9), ("avionics", 1.0), ("airframe", 1.0),
+    ]),
+    ("Space (launch/satellites)", [
+        ("satellite", 0.9), ("space launch", 1.0), ("orbit", 0.7),
+    ]),
+    ("Defense", [
+        ("defense", 0.8), ("defence", 0.8), ("military", 0.9),
+    ]),
+    ("Automotive (OEM & mobility)", [
+        ("automotive", 1.0), ("vehicle", 0.6), ("oem ", 0.5),
+        ("adas", 1.0), ("autonomous driving", 1.0),
+    ]),
+    ("Rail / Transit", [
+        ("rail ", 0.7), ("transit", 0.6), ("locomotive", 1.0), ("railway", 0.9),
+    ]),
+    ("Maritime / Shipping", [
+        ("maritime", 1.0), ("shipping", 0.6), ("vessel", 0.7),
+    ]),
+    ("Oil & Gas (upstream)", [
+        ("upstream oil", 1.0), ("drilling", 0.7), ("well ", 0.4),
+        ("reservoir", 0.8), ("exploration", 0.5),
+    ]),
+    ("Oil & Gas (midstream)", [
+        ("midstream", 1.0), ("pipeline transport", 1.0),
+    ]),
+    ("Refining / Petrochemicals", [
+        ("refining", 0.8), ("petrochemical", 1.0), ("refinery", 1.0),
+    ]),
+    ("Chemicals (specialty/commodity)", [
+        ("chemical", 0.7), ("specialty chemical", 1.0),
+    ]),
+    ("Materials (advanced materials)", [
+        ("advanced material", 1.0), ("composite", 0.6), ("nanomaterial", 1.0),
+    ]),
+    ("Power generation (incl. nuclear)", [
+        ("power generation", 1.0), ("nuclear", 0.7), ("power plant", 1.0),
+    ]),
+    ("Renewables (wind/solar/storage)", [
+        ("renewable", 0.8), ("solar", 0.6), ("wind farm", 1.0),
+        ("battery storage", 0.9),
+    ]),
+    ("Utilities (electric/gas/water)", [
+        ("utility", 0.5), ("electric utility", 1.0), ("water utility", 1.0),
+    ]),
+    ("Mining & Metals", [
+        ("mining", 0.8), ("ore ", 0.7), ("metal processing", 1.0),
+    ]),
+    ("Construction (GC / EPC)", [
+        ("construction", 0.7), ("general contractor", 1.0), ("epc ", 0.8),
+    ]),
+    ("Real Estate (dev/property mgmt)", [
+        ("real estate", 1.0), ("property management", 1.0), ("reit", 1.0),
+    ]),
+    ("Food & Beverage Manufacturing", [
+        ("food manufacturing", 1.0), ("beverage", 0.6), ("food processing", 1.0),
+        ("restaurant", 0.6), ("food service", 0.7),
+    ]),
+    ("Agriculture", [
+        ("agriculture", 1.0), ("farming", 0.8), ("agri-tech", 1.0),
+        ("agritech", 1.0), ("crop", 0.6),
+    ]),
+    ("Consumer Packaged Goods (CPG)", [
+        ("cpg ", 1.0), ("consumer packaged", 1.0), ("fmcg", 1.0),
+    ]),
+    ("Consumer Electronics", [
+        ("consumer electronics", 1.0), ("wearable", 0.7), ("smart device", 0.8),
+    ]),
+    ("Logistics / 3PL", [
+        ("logistics", 0.8), ("3pl", 1.0), ("warehousing", 0.7), ("freight", 0.8),
+        ("supply chain", 0.7), ("inventory", 0.5),
+    ]),
+    ("Retail (physical)", [
+        ("retail store", 1.0), ("brick and mortar", 1.0), ("pos ", 0.6),
+        ("store manager", 0.8), ("retail chain", 0.9),
+    ]),
+    ("E-commerce / Marketplaces", [
+        ("e-commerce", 1.0), ("ecommerce", 1.0), ("marketplace", 0.7),
+        ("online store", 0.9), ("shopify", 0.8),
+    ]),
+    ("Telecommunications", [
+        ("telecom", 0.9), ("5g ", 0.8), ("network operator", 1.0),
+    ]),
+    ("Cloud / Data Centers", [
+        ("data center", 1.0), ("cloud infrastructure", 1.0),
+        ("iaas", 1.0), ("paas", 0.9),
+    ]),
+    ("IT Services / Systems Integration", [
+        ("it service", 0.9), ("system integrat", 0.9), ("managed service", 0.9),
+    ]),
+    ("Software / SaaS", [
+        ("saas", 1.0), ("software product", 0.8),
+        # Generic terms get LOW weight — they shouldn't override specific industry signals.
+        ("platform", 0.2), ("web app", 0.2), ("api", 0.15),
+        ("mobile app", 0.2), ("dashboard", 0.15),
+    ]),
+]
+
+
+def _detect_industry_keywords(text: str) -> str:
+    """Score all industries and return best match.
+
+    Multi-signal weighted scoring instead of first-match.
+    A keyword like 'platform' (weight 0.2) won't override 'clinic' (weight 0.7).
     """
     text_lower = text.lower()
 
-    # Ordered from most specific to least specific.
-    _INDUSTRY_SIGNALS: list[tuple[str, list[str]]] = [
-        ("Pharmaceuticals", ["pharmaceutical", "drug development", "clinical trial", "fda"]),
-        ("Biotech", ["biotech", "gene therapy", "cell therapy"]),
-        ("Medical Devices", ["medical device", "class ii", "class iii", "510(k)"]),
-        ("CRO / Clinical Trials Services", ["cro ", "contract research"]),
-        ("Healthcare Providers (hospitals/clinics)", ["hospital", "clinic", "healthcare provider", "patient care"]),
-        ("Health Insurance / Payers", ["health insurance", "payer", "claims processing"]),
-        ("Capital Markets / Asset Mgmt", ["capital market", "asset management", "trading", "portfolio"]),
-        ("Banking (retail/commercial)", ["banking", "bank ", "retail bank", "commercial bank"]),
-        ("Payments / Fintech", ["payment", "fintech", "neobank"]),
-        ("Insurance", ["insurance", "underwriting", "actuarial"]),
-        ("Cybersecurity (vendors)", ["cybersecurity", "threat detection", "soc ", "siem"]),
-        ("Semiconductors", ["semiconductor", "chip design", "wafer", "fab "]),
-        ("Aerospace", ["aerospace", "aircraft", "avionics"]),
-        ("Space (launch/satellites)", ["satellite", "space launch", "orbit"]),
-        ("Defense", ["defense", "defence", "military"]),
-        ("Automotive (OEM & mobility)", ["automotive", "vehicle", "oem ", "adas"]),
-        ("Rail / Transit", ["rail ", "transit", "locomotive"]),
-        ("Maritime / Shipping", ["maritime", "shipping", "vessel"]),
-        ("Oil & Gas (upstream)", ["upstream oil", "exploration", "drilling", "well "]),
-        ("Oil & Gas (midstream)", ["midstream", "pipeline transport"]),
-        ("Refining / Petrochemicals", ["refining", "petrochemical", "refinery"]),
-        ("Chemicals (specialty/commodity)", ["chemical", "specialty chemical"]),
-        ("Materials (advanced materials)", ["advanced material", "composite", "nanomaterial"]),
-        ("Power generation (incl. nuclear)", ["power generation", "nuclear", "power plant"]),
-        ("Renewables (wind/solar/storage)", ["renewable", "solar", "wind farm", "battery storage"]),
-        ("Utilities (electric/gas/water)", ["utility", "electric utility", "water utility"]),
-        ("Mining & Metals", ["mining", "ore ", "metal processing"]),
-        ("Construction (GC / EPC)", ["construction", "general contractor", "epc "]),
-        ("Real Estate (dev/property mgmt)", ["real estate", "property management", "reit"]),
-        ("Food & Beverage Manufacturing", ["food manufacturing", "beverage", "food processing"]),
-        ("Agriculture", ["agriculture", "farming", "agri-tech", "agritech"]),
-        ("Consumer Packaged Goods (CPG)", ["cpg ", "consumer packaged", "fmcg"]),
-        ("Consumer Electronics", ["consumer electronics", "wearable", "smart device"]),
-        ("Logistics / 3PL", ["logistics", "3pl", "warehousing", "freight"]),
-        ("Retail (physical)", ["retail store", "brick and mortar", "pos "]),
-        ("E-commerce / Marketplaces", ["e-commerce", "ecommerce", "marketplace", "online store"]),
-        ("Telecommunications", ["telecom", "5g ", "network operator"]),
-        ("Cloud / Data Centers", ["data center", "cloud infrastructure", "iaas", "paas"]),
-        ("IT Services / Systems Integration", ["it service", "system integrat", "managed service"]),
-        ("Software / SaaS", ["saas", "software product", "platform", "web app", "api"]),
-    ]
+    best_industry = ""
+    best_score = 0.0
 
-    for industry_name, signals in _INDUSTRY_SIGNALS:
-        if any(sig in text_lower for sig in signals):
-            return industry_name
+    for industry_name, signals in _INDUSTRY_SIGNALS_WEIGHTED:
+        score = sum(weight for term, weight in signals if term in text_lower)
+        if score > best_score:
+            best_score = score
+            best_industry = industry_name
 
-    return ""
+    # Require a minimum signal strength to avoid false positives.
+    if best_score < 0.5:
+        return ""
+
+    return best_industry
+
