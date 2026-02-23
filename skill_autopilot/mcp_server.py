@@ -75,6 +75,7 @@ def mcp_start_project(
     # Start a run and get the first task.
     first_task = None
     run_id = None
+    checklist_text = ""
     if plan:
         route = engine.db.get_latest_route(response.project_id)
         run_id = engine.task_machine.start_run(
@@ -83,10 +84,13 @@ def mcp_start_project(
             route_id=route["route_id"] if route else None,
         )
         first_task = engine.task_machine.next_task(response.project_id)
+        checklist = engine.task_machine.task_checklist(response.project_id)
+        checklist_text = checklist.get("text", "")
 
     return {
         "project_id": response.project_id,
         "status": response.status,
+        "task_list": checklist_text,
         "plan_id": response.plan_id,
         "run_id": run_id,
         "industry": plan_json.get("summary", {}).get("industry", ""),
@@ -94,8 +98,6 @@ def mcp_start_project(
         "pods": plan_json.get("pods", []),
         "selected_skills": [item.model_dump() for item in response.selected_skills],
         "plan_summary": plan_json.get("summary", {}),
-        "brief_resolution": brief_diag,
-        "workspace_resolution": workspace_diag,
         "first_task": first_task,
     }
 
@@ -112,8 +114,9 @@ def mcp_next_task(project_id: str) -> Dict[str, Any]:
     engine = _get_engine()
     result = engine.task_machine.next_task(project_id)
     if result is None:
-        return {"project_id": project_id, "status": "no_plan"}
-    return {"project_id": project_id, **result}
+        return {"project_id": project_id, "status": "no_plan", "task_list": ""}
+    checklist = result.pop("checklist", {}) or {}
+    return {"project_id": project_id, "task_list": checklist.get("text", ""), **result}
 
 
 @mcp.tool(
@@ -141,7 +144,10 @@ def mcp_complete_task(
         project_id=project_id,
         payload={"task_id": task_id, "summary": summary},
     )
-    return {"project_id": project_id, **result}
+    # Lift checklist text from the nested next-task response.
+    next_result = result.get("next") or {}
+    checklist = next_result.pop("checklist", {}) or {}
+    return {"project_id": project_id, "task_list": checklist.get("text", ""), **result}
 
 
 @mcp.tool(
@@ -164,7 +170,9 @@ def mcp_skip_task(
         project_id=project_id,
         payload={"task_id": task_id, "reason": reason},
     )
-    return {"project_id": project_id, **result}
+    next_result = result.get("next") or {}
+    checklist = next_result.pop("checklist", {}) or {}
+    return {"project_id": project_id, "task_list": checklist.get("text", ""), **result}
 
 
 # ---------------------------------------------------------------------------
