@@ -2,7 +2,7 @@
 name: Event Modeler
 description: Designs event-driven workflows and idempotent processing semantics.
 tags: [events, integration, reliability, architecture]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for system design, reliability, and scalability planning. In
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: events,integration,reliability,architecture
 Depends-On: core.orchestrator,core.quality
 

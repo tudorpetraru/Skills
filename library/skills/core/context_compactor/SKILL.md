@@ -2,7 +2,7 @@
 name: Context Compactor
 description: Compresses long project context into concise working packets for agents.
 tags: [context, summarization, handoff, efficiency]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Context Compactor
@@ -32,7 +32,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: context,summarization,handoff,efficiency
 
 ## Execution Workflow

@@ -2,7 +2,7 @@
 name: API Contract Designer
 description: Designs stable API contracts, versioning, and compatibility strategy.
 tags: [api, contracts, versioning, backend]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for system design, reliability, and scalability planning. In
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: api,contracts,versioning,backend
 Depends-On: core.orchestrator,core.quality
 

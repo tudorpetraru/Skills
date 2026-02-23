@@ -1,7 +1,7 @@
 [project]
 name = "skill-autopilot"
 version = "0.1.0"
-description = "One-click local skill routing and lifecycle manager for Claude/Codex desktop workflows"
+description = "One-click local skill routing and lifecycle manager for Claude Desktop workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

@@ -2,7 +2,7 @@
 name: Change Control
 description: Enforces change review, impact analysis, and traceability for material project changes.
 tags: [change-control, traceability, approvals, governance]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [governance.risk_compliance, core.scribe]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: change-control,traceability,approvals,governance
 Depends-On: governance.risk_compliance,core.scribe
 

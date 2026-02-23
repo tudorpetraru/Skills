@@ -2,7 +2,7 @@
 name: Core Orchestrator
 description: Breaks project briefs into phased execution plans, owners, and dependency-aware task graphs.
 tags: [planning, decomposition, delivery, coordination]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Core Orchestrator
@@ -32,7 +32,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: planning,decomposition,delivery,coordination
 
 ## Execution Workflow

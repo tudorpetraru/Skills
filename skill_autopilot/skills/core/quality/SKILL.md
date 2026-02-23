@@ -2,7 +2,7 @@
 name: Core Quality
 description: Enforces acceptance criteria, identifies failure modes, and blocks low-quality transitions.
 tags: [quality, validation, risk, testing]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Core Quality
@@ -34,7 +34,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: quality,validation,risk,testing
 
 ## Execution Workflow

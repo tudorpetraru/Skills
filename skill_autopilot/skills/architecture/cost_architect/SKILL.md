@@ -2,7 +2,7 @@
 name: Cost Architect
 description: Optimizes architecture choices for predictable infrastructure cost.
 tags: [cost, infrastructure, optimization, architecture]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for system design, reliability, and scalability planning. In
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: cost,infrastructure,optimization,architecture
 Depends-On: core.orchestrator,core.quality
 

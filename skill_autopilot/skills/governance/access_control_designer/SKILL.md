@@ -2,7 +2,7 @@
 name: Access Control Designer
 description: Designs least-privilege role and permission models.
 tags: [access-control, security, iam, governance]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: access-control,security,iam,governance
 Depends-On: core.quality
 

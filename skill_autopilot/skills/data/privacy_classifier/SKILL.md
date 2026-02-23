@@ -2,7 +2,7 @@
 name: Privacy Classifier
 description: Classifies data sensitivity and required handling controls.
 tags: [privacy, classification, governance, security]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for data model quality, pipeline reliability, and analytical
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: privacy,classification,governance,security
 Depends-On: core.orchestrator,core.quality
 

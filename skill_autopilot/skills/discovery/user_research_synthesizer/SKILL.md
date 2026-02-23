@@ -2,7 +2,7 @@
 name: User Research Synthesizer
 description: Synthesizes interviews and feedback into actionable product insights.
 tags: [research, users, insights, prioritization]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # User Research Synthesizer
@@ -32,7 +32,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: research,users,insights,prioritization
 
 ## Execution Workflow

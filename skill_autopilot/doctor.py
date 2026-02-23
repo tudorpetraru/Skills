@@ -116,7 +116,6 @@ def run_doctor(config_path: Path) -> List[CheckResult]:
     results.extend(_check_state_dirs(config_path))
     results.append(_check_mcp_health())
     results.append(_check_cli("claude", critical=False))
-    results.append(_check_cli("codex", critical=False))
     return results
 
 

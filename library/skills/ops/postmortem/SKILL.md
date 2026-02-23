@@ -2,7 +2,7 @@
 name: Postmortem
 description: Produces blameless postmortems with root cause and corrective action tracking.
 tags: [postmortem, rca, corrective-actions, learning]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [ops.incident_response, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for runtime operations, release safety, and incident readine
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: postmortem,rca,corrective-actions,learning
 Depends-On: ops.incident_response,core.quality
 

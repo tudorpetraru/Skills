@@ -2,7 +2,7 @@
 name: Vendor Risk Review
 description: Assesses third-party risk and contractual control coverage.
 tags: [vendor, risk, compliance, procurement]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: vendor,risk,compliance,procurement
 Depends-On: core.quality
 

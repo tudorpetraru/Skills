@@ -2,7 +2,7 @@
 name: Stakeholder Mapper
 description: Maps stakeholders, decision rights, and communication cadence.
 tags: [stakeholders, alignment, governance, communication]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Stakeholder Mapper
@@ -32,7 +32,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: stakeholders,alignment,governance,communication
 
 ## Execution Workflow

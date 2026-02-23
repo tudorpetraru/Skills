@@ -2,7 +2,7 @@
 name: Assumption Tracker
 description: Captures assumptions, confidence levels, and validation plans to reduce blind spots.
 tags: [assumptions, risk, planning, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Assumption Tracker
@@ -34,7 +34,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: assumptions,risk,planning,quality
 
 ## Execution Workflow

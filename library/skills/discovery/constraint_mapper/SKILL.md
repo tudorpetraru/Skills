@@ -2,7 +2,7 @@
 name: Constraint Mapper
 description: Identifies technical, legal, budget, and timeline constraints early.
 tags: [constraints, risk, planning, governance]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Constraint Mapper
@@ -33,7 +33,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: constraints,risk,planning,governance
 
 ## Execution Workflow

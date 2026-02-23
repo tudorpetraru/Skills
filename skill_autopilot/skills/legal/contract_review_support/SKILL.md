@@ -2,7 +2,7 @@
 name: Contract Review Support
 description: Extracts key contractual obligations and implementation impacts.
 tags: [legal, contracts, risk, compliance]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for legal obligation clarity and implementation-safe complia
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: legal,contracts,risk,compliance
 Depends-On: core.orchestrator,core.quality
 

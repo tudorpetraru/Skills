@@ -2,7 +2,7 @@
 name: Mobile Release Manager
 description: Plans staged rollout, store readiness, and release risk controls.
 tags: [mobile, release, operations, risk]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for mobile reliability, release discipline, and app quality.
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: mobile,release,operations,risk
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: Guardrail Designer
 description: Defines safety, policy, and abuse-prevention guardrails.
 tags: [guardrails, safety, policy, ai]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for model quality, safety controls, and AI system reliabilit
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: guardrails,safety,policy,ai
 Depends-On: core.orchestrator,core.quality
 

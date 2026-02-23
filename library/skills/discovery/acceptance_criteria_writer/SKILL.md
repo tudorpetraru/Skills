@@ -2,7 +2,7 @@
 name: Acceptance Criteria Writer
 description: Translates objectives into verifiable acceptance criteria.
 tags: [acceptance, quality, requirements, testing]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Acceptance Criteria Writer
@@ -33,7 +33,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: acceptance,quality,requirements,testing
 
 ## Execution Workflow

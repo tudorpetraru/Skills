@@ -2,7 +2,7 @@
 name: UI Flow Mapper
 description: Maps user journeys and interaction flows for product surfaces.
 tags: [ux, flows, frontend, design]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for frontend quality, UX coherence, and client performance. 
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: ux,flows,frontend,design
 Depends-On: core.orchestrator,core.quality
 

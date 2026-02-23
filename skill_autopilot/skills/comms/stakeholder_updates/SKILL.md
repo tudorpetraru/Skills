@@ -2,7 +2,7 @@
 name: Stakeholder Updates
 description: Generates concise, audience-specific updates for sponsors, operators, and delivery teams.
 tags: [communication, status, stakeholders, reporting]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.scribe, core.delivery_tracker]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for stakeholder clarity, decision communication, and handoff
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: communication,status,stakeholders,reporting
 Depends-On: core.scribe,core.delivery_tracker
 

@@ -4,8 +4,6 @@
 1. macOS with terminal access.
 2. Python 3.11+ (`python3 --version`).
 3. Git.
-4. Optional for native execution:
-`claude` CLI and/or `codex` CLI in `PATH`.
 
 ## One-command install
 ```bash

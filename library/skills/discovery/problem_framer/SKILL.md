@@ -2,7 +2,7 @@
 name: Problem Framer
 description: Defines problem statement, target outcomes, and non-goals before execution.
 tags: [discovery, problem, strategy, alignment]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Problem Framer
@@ -32,7 +32,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: discovery,problem,strategy,alignment
 
 ## Execution Workflow

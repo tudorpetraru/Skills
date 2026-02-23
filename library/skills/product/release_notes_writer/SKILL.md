@@ -2,7 +2,7 @@
 name: Release Notes Writer
 description: Generates user-facing release notes tied to validated changes.
 tags: [release, communication, docs, customer]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for product direction, prioritization, and requirement quali
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: release,communication,docs,customer
 Depends-On: core.orchestrator,core.quality
 

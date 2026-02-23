@@ -2,7 +2,7 @@
 name: Inference Cost Optimizer
 description: Optimizes inference spend with routing and caching strategies.
 tags: [cost, inference, optimization, ai]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for model quality, safety controls, and AI system reliabilit
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: cost,inference,optimization,ai
 Depends-On: core.orchestrator,core.quality
 

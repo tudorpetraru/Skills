@@ -2,7 +2,7 @@
 name: RAG Designer
 description: Designs retrieval pipelines, chunking, and grounding strategies.
 tags: [ai, rag, retrieval, knowledge]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for model quality, safety controls, and AI system reliabilit
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: ai,rag,retrieval,knowledge
 Depends-On: core.orchestrator,core.quality
 

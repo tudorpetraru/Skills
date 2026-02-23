@@ -3,37 +3,35 @@
 Base URL: `http://127.0.0.1:8787`
 
 This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
-1. `sa_start_project`
-2. `sa_project_status`
-3. `sa_reroute_project` (`force` optional)
-4. `sa_end_project`
-5. `sa_project_history`
-6. `sa_active_plan`
-7. `sa_service_health`
-8. `sa_run_project`
-9. `sa_task_status` (`task_limit`, `include_outputs` optional)
-10. `sa_approve_gate`
-11. `sa_validate_brief_path`
-12. `sa_job_status`
-13. `sa_jobs_recent`
+
+### Task workflow
+1. `sa_start_project` — parse brief, select pods, return first task
+2. `sa_next_task` — get next pending task
+3. `sa_complete_task` — mark done, return next
+4. `sa_skip_task` — skip, return next
+5. `sa_approve_gate` — unblock gated phases
+
+### Lifecycle
+6. `sa_project_status`
+7. `sa_reroute_project` (`force` optional)
+8. `sa_end_project`
+9. `sa_project_history`
+10. `sa_active_plan`
+11. `sa_service_health`
+12. `sa_task_status` (`task_limit`, `include_outputs` optional)
+13. `sa_validate_brief_path`
+
+### Observability
 14. `sa_observability_overview`
 15. `sa_project_observability`
 16. `sa_reconcile_stale_projects`
 
-## MCP Async Behavior (important)
-1. `sa_start_project` defaults to `auto_run=false`, so it returns quickly with `project_id`.
-2. `sa_start_project` also returns `brief_resolution` and `workspace_resolution` diagnostics for path visibility.
-3. If `sa_start_project` is called with `auto_run=true`, execution is dispatched async by default and returns `execution.job_id`.
-4. `sa_run_project` dispatches async by default and returns:
-```json
-{
-  "status": "accepted",
-  "job_id": "string",
-  "project_id": "string"
-}
-```
-5. Poll `sa_job_status(job_id)` for completion and final run result payload.
-6. Set `wait_for_completion=true` only when you explicitly want blocking behavior.
+## MCP Execution Model
+1. `sa_start_project` parses the brief, selects pods/kernels, generates a plan, starts a run, and returns the first task.
+2. Claude Desktop works through tasks by calling `sa_complete_task` or `sa_skip_task`.
+3. `sa_next_task` returns the next pending task with instructions, acceptance criteria, and a `task_list` checklist.
+4. Phase gates auto-approve when all tasks in the gated phase complete. Use `sa_approve_gate` for manual overrides.
+5. When all tasks are done, `sa_next_task` returns `status: "all_complete"`.
 
 ## MCP Observability (Claude-side monitoring)
 1. `sa_observability_overview` gives a DB-only live view of active projects with `classification=progressing|stale`.
@@ -42,14 +40,14 @@ This project also exposes equivalent MCP tools via `skill-autopilot-mcp`:
 4. Resource `skill-autopilot://observability` exposes a lightweight table for quick in-app visibility.
 
 ## POST /start-project
-Starts or reactivates a project from a workspace brief.
+Starts a project from a workspace brief.
 
 Request:
 ```json
 {
   "workspace_path": "string",
   "brief_path": "string",
-  "host_targets": ["claude_desktop", "codex_desktop"]
+  "host_targets": ["claude_desktop"]
 }
 ```
 
@@ -59,7 +57,9 @@ Response:
   "project_id": "string",
   "selected_skills": [{"skill_id":"string", "reason":"string"}],
   "plan_id": "string",
-  "status": "started"
+  "status": "started",
+  "task_list": "# Task Progress: 0/12 complete\n...",
+  "first_task": {"status": "ready", "task": {...}}
 }
 ```
 
@@ -71,7 +71,7 @@ Response:
 {
   "project_id": "string",
   "state": "idle|active|closing|closed|error",
-  "active_hosts": ["claude_desktop", "codex_desktop"],
+  "active_hosts": ["claude_desktop"],
   "active_skill_count": 0,
   "last_route_at": "RFC3339"
 }
@@ -103,28 +103,6 @@ Returns recent projects and route summaries.
 ## GET /health
 Returns service health, DB state, and last catalog snapshot metadata.
 
-## POST /run-project
-Executes the latest project action plan via orchestrator runtime.
-
-Request:
-```json
-{
-  "project_id": "string",
-  "auto_approve_gates": true
-}
-```
-
-Response:
-```json
-{
-  "project_id": "string",
-  "run_id": "string",
-  "status": "completed|blocked|failed",
-  "executed_tasks": 0,
-  "pending_gates": ["gate-1"]
-}
-```
-
 ## GET /task-status/{project_id}
 Returns latest run status and per-task outputs.
 
@@ -148,7 +126,7 @@ Request:
   "lease_id": "string",
   "project_id": "string",
   "skill_id": "string",
-  "host": "claude_desktop|codex_desktop",
+  "host": "claude_desktop",
   "expires_at": "RFC3339"
 }
 ```

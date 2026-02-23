@@ -2,7 +2,7 @@
 name: Accessibility Implementer
 description: Implements practical accessibility fixes and test strategy.
 tags: [accessibility, frontend, wcag, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for frontend quality, UX coherence, and client performance. 
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: accessibility,frontend,wcag,quality
 Depends-On: core.orchestrator,core.quality
 

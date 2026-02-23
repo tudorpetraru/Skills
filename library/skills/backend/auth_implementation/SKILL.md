@@ -2,7 +2,7 @@
 name: Auth Implementation
 description: Implements authentication and authorization flows safely.
 tags: [auth, security, backend, identity]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for backend service robustness, API quality, and data integr
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: auth,security,backend,identity
 Depends-On: core.orchestrator,core.quality
 

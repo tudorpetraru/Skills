@@ -2,7 +2,7 @@
 name: Cost Control Advisor
 description: Identifies cost drivers and proposes controllable reductions.
 tags: [cost, optimization, finance, operations]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for financial viability, forecasting, and cost control decis
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: cost,optimization,finance,operations
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: On-call Planner
 description: Designs on-call rotations, ownership, and response expectations.
 tags: [oncall, operations, support, reliability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for runtime operations, release safety, and incident readine
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: oncall,operations,support,reliability
 Depends-On: core.orchestrator,core.quality
 

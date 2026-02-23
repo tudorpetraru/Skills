@@ -2,7 +2,7 @@
 name: Requirements Specifier
 description: Produces decision-complete functional and non-functional requirements from normalized intent.
 tags: [requirements, specification, acceptance, scope]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [discovery.brief_normalizer, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: requirements,specification,acceptance,scope
 Depends-On: discovery.brief_normalizer,core.quality
 

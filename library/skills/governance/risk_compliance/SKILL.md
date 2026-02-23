@@ -2,7 +2,7 @@
 name: Risk and Compliance
 description: Classifies project risk, applies governance controls, and defines required approvals.
 tags: [risk, compliance, governance, controls]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: risk,compliance,governance,controls
 Depends-On: core.quality
 

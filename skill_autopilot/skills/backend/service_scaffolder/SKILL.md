@@ -2,7 +2,7 @@
 name: Service Scaffolder
 description: Scaffolds backend service structure with production-ready defaults.
 tags: [backend, services, scaffold, engineering]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for backend service robustness, API quality, and data integr
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: backend,services,scaffold,engineering
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: Digital Product Kernel
 description: End-to-end build-and-ship kernel for software products with iterative delivery.
 tags: [software, product, build, ship, kernel]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality, discovery.requirements_specifier]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for end-to-end digital product delivery coordination. In thi
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: software,product,build,ship,kernel
 Depends-On: core.orchestrator,core.quality,discovery.requirements_specifier
 

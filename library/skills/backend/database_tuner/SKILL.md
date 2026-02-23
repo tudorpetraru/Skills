@@ -2,7 +2,7 @@
 name: Database Tuner
 description: Optimizes query patterns, indexing, and transaction behavior.
 tags: [database, performance, backend, scaling]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for backend service robustness, API quality, and data integr
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: database,performance,backend,scaling
 Depends-On: core.orchestrator,core.quality
 

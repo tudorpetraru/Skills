@@ -2,7 +2,7 @@
 name: Experiment Designer
 description: Designs product experiments with controls, hypotheses, and success thresholds.
 tags: [experiments, ab-testing, metrics, validation]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for product direction, prioritization, and requirement quali
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: experiments,ab-testing,metrics,validation
 Depends-On: core.orchestrator,core.quality
 

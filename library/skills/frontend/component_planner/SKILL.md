@@ -2,7 +2,7 @@
 name: Component Planner
 description: Plans reusable component architecture and ownership boundaries.
 tags: [components, frontend, architecture, scalability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for frontend quality, UX coherence, and client performance. 
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: components,frontend,architecture,scalability
 Depends-On: core.orchestrator,core.quality
 

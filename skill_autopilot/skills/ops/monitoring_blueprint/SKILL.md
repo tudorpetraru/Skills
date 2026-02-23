@@ -2,7 +2,7 @@
 name: Monitoring Blueprint
 description: Defines dashboards, alerts, and service health indicators.
 tags: [monitoring, observability, alerts, ops]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for runtime operations, release safety, and incident readine
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: monitoring,observability,alerts,ops
 Depends-On: core.orchestrator,core.quality
 

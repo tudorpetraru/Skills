@@ -2,7 +2,7 @@
 name: Decision Log
 description: Maintains traceable decision records with context, options, and rationale.
 tags: [decisions, traceability, governance, delivery]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Decision Log
@@ -32,7 +32,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: decisions,traceability,governance,delivery
 
 ## Execution Workflow

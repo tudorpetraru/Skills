@@ -2,7 +2,7 @@
 name: Accessibility Auditor
 description: Audits accessibility requirements and remediation priorities.
 tags: [accessibility, ux, compliance, qa]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for verification quality, regression prevention, and confide
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: accessibility,ux,compliance,qa
 Depends-On: core.orchestrator,core.quality
 

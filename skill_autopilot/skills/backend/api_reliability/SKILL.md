@@ -2,7 +2,7 @@
 name: API Reliability
 description: Improves API reliability with retries, timeouts, and failure semantics.
 tags: [api, reliability, backend, resilience]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for backend service robustness, API quality, and data integr
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: api,reliability,backend,resilience
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: Compliance Checklist
 description: Builds implementation checklists for common compliance regimes.
 tags: [compliance, checklist, governance, risk]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for legal obligation clarity and implementation-safe complia
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: compliance,checklist,governance,risk
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: Model Selection
 description: Selects model families based on task profile, latency, and cost constraints.
 tags: [ai, models, selection, cost]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for model quality, safety controls, and AI system reliabilit
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: ai,models,selection,cost
 Depends-On: core.orchestrator,core.quality
 

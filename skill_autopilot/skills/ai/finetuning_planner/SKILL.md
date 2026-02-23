@@ -2,7 +2,7 @@
 name: Fine-tuning Planner
 description: Plans fine-tuning datasets, validation, and rollout controls.
 tags: [finetuning, datasets, mlops, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for model quality, safety controls, and AI system reliabilit
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: finetuning,datasets,mlops,quality
 Depends-On: core.orchestrator,core.quality
 

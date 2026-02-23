@@ -2,7 +2,7 @@
 name: API Connector Builder
 description: Plans and scaffolds robust third-party API connectors.
 tags: [integration, api, connectors, reliability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for external system integration reliability and contract int
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: integration,api,connectors,reliability
 Depends-On: core.orchestrator,core.quality
 

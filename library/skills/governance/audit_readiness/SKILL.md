@@ -2,7 +2,7 @@
 name: Audit Readiness
 description: Prepares control evidence and audit-ready documentation packages.
 tags: [audit, evidence, compliance, governance]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: audit,evidence,compliance,governance
 Depends-On: core.quality
 

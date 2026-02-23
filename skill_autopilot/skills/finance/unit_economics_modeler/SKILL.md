@@ -2,7 +2,7 @@
 name: Unit Economics Modeler
 description: Models unit economics and margin sensitivity scenarios.
 tags: [finance, economics, modeling, analysis]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for financial viability, forecasting, and cost control decis
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: finance,economics,modeling,analysis
 Depends-On: core.orchestrator,core.quality
 

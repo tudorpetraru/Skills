@@ -2,7 +2,7 @@
 name: Brief Normalizer
 description: Transforms free-form briefs into normalized goals, constraints, deliverables, and risk profiles.
 tags: [discovery, brief, normalization, requirements]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: discovery,brief,normalization,requirements
 Depends-On: core.orchestrator
 

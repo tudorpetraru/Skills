@@ -2,7 +2,7 @@
 name: Pipeline Planner
 description: Designs data pipelines with retries, validation, and observability.
 tags: [pipelines, etl, reliability, data]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for data model quality, pipeline reliability, and analytical
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: pipelines,etl,reliability,data
 Depends-On: core.orchestrator,core.quality
 

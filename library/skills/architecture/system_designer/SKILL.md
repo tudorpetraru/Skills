@@ -2,7 +2,7 @@
 name: System Designer
 description: Produces high-level architecture with component boundaries and tradeoffs.
 tags: [architecture, systems, design, scalability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for system design, reliability, and scalability planning. In
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: architecture,systems,design,scalability
 Depends-On: core.orchestrator,core.quality
 

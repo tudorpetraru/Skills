@@ -2,7 +2,7 @@
 name: BI Semantic Modeler
 description: Builds semantic models for analytics consistency.
 tags: [bi, metrics, analytics, modeling]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for data model quality, pipeline reliability, and analytical
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: bi,metrics,analytics,modeling
 Depends-On: core.orchestrator,core.quality
 

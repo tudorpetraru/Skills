@@ -2,7 +2,7 @@
 name: Core Scribe
 description: Converts project activity into durable documentation, decision logs, and status updates.
 tags: [documentation, decisions, changelog, communication]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Core Scribe
@@ -32,7 +32,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: documentation,decisions,changelog,communication
 
 ## Execution Workflow

@@ -2,7 +2,7 @@
 name: Feature Spec Writer
 description: Produces implementation-ready feature specifications and edge-case coverage.
 tags: [spec, features, engineering, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for product direction, prioritization, and requirement quali
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: spec,features,engineering,quality
 Depends-On: core.orchestrator,core.quality
 

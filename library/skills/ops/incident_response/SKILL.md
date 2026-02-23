@@ -2,7 +2,7 @@
 name: Incident Response
 description: Handles production incidents with triage, containment, and communication workflows.
 tags: [incident, operations, triage, reliability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.scribe]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for runtime operations, release safety, and incident readine
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: incident,operations,triage,reliability
 Depends-On: core.orchestrator,core.scribe
 

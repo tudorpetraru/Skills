@@ -2,7 +2,7 @@
 name: Security Tester
 description: Designs security testing plans for auth, data, and abuse vectors.
 tags: [security, testing, risk, qa]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for verification quality, regression prevention, and confide
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: security,testing,risk,qa
 Depends-On: core.orchestrator,core.quality
 

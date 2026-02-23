@@ -2,7 +2,7 @@
 name: Core Research
 description: Builds evidence-backed options, tradeoff analysis, and recommendation briefs.
 tags: [research, analysis, options, evidence]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Core Research
@@ -32,7 +32,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: research,analysis,options,evidence
 
 ## Execution Workflow

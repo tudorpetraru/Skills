@@ -2,7 +2,7 @@
 name: Prompt Optimizer
 description: Refines task prompts for clarity, determinism, and measurable outputs.
 tags: [prompting, quality, execution, reliability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Prompt Optimizer
@@ -34,7 +34,7 @@ You are responsible for cross-project orchestration, delivery control, and execu
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: prompting,quality,execution,reliability
 
 ## Execution Workflow

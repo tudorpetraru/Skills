@@ -2,7 +2,7 @@
 name: SRE Runbook
 description: Creates incident runbooks with diagnostics and escalation paths.
 tags: [sre, runbook, incident, operations]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for runtime operations, release safety, and incident readine
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: sre,runbook,incident,operations
 Depends-On: core.orchestrator,core.quality
 

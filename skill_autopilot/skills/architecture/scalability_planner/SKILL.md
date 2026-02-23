@@ -2,7 +2,7 @@
 name: Scalability Planner
 description: Plans horizontal scaling, bottlenecks, and load-control strategies.
 tags: [scalability, performance, capacity, reliability]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for system design, reliability, and scalability planning. In
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: scalability,performance,capacity,reliability
 Depends-On: core.orchestrator,core.quality
 

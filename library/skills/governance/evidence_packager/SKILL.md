@@ -2,7 +2,7 @@
 name: Evidence Packager
 description: Produces audit-ready evidence bundles for phase transitions and project closure.
 tags: [evidence, audit, traceability, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [governance.change_control, core.scribe, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: evidence,audit,traceability,quality
 Depends-On: governance.change_control,core.scribe,core.quality
 

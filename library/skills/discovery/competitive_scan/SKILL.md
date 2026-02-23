@@ -2,7 +2,7 @@
 name: Competitive Scan
 description: Analyzes alternatives and differentiators to shape product direction.
 tags: [market, analysis, strategy, research]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Competitive Scan
@@ -32,7 +32,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: market,analysis,strategy,research
 
 ## Execution Workflow

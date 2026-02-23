@@ -2,7 +2,7 @@
 name: Third-party Assessor
 description: Evaluates external service fit, lock-in, and operational risk.
 tags: [vendor, integration, risk, architecture]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for external system integration reliability and contract int
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: vendor,integration,risk,architecture
 Depends-On: core.orchestrator,core.quality
 

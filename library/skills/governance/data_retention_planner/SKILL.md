@@ -2,7 +2,7 @@
 name: Data Retention Planner
 description: Defines retention and deletion policies for regulated data.
 tags: [retention, privacy, compliance, governance]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for risk, compliance, and auditability across delivery lifec
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: retention,privacy,compliance,governance
 Depends-On: core.quality
 

@@ -2,7 +2,7 @@
 name: Test Case Designer
 description: Designs high-value test cases for critical paths and edge cases.
 tags: [testing, qa, coverage, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for verification quality, regression prevention, and confide
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: testing,qa,coverage,quality
 Depends-On: core.orchestrator,core.quality
 

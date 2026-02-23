@@ -2,7 +2,7 @@
 name: Daily Status Digest
 description: Generates concise daily updates with blockers and next actions.
 tags: [status, updates, coordination, delivery]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.scribe]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for stakeholder clarity, decision communication, and handoff
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: status,updates,coordination,delivery
 Depends-On: core.scribe
 

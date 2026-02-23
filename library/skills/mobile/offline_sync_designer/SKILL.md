@@ -2,7 +2,7 @@
 name: Offline Sync Designer
 description: Designs offline-first sync conflict resolution strategies.
 tags: [mobile, offline, sync, data]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for mobile reliability, release discipline, and app quality.
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: mobile,offline,sync,data
 Depends-On: core.orchestrator,core.quality
 

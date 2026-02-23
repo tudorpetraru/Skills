@@ -2,7 +2,7 @@
 name: Identity Federation
 description: Designs SSO and identity federation integration flows.
 tags: [identity, sso, security, integration]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for external system integration reliability and contract int
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: identity,sso,security,integration
 Depends-On: core.orchestrator,core.quality
 

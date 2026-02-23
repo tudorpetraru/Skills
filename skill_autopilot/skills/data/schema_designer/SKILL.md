@@ -2,7 +2,7 @@
 name: Schema Designer
 description: Designs robust data schemas with lineage and change compatibility.
 tags: [data, schema, modeling, integration]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for data model quality, pipeline reliability, and analytical
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: data,schema,modeling,integration
 Depends-On: core.orchestrator,core.quality
 

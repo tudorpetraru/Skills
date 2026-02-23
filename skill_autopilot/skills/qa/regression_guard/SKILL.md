@@ -2,7 +2,7 @@
 name: Regression Guard
 description: Builds regression protection plans and failure triage routes.
 tags: [regression, qa, stability, quality]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for verification quality, regression prevention, and confide
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: regression,qa,stability,quality
 Depends-On: core.orchestrator,core.quality
 

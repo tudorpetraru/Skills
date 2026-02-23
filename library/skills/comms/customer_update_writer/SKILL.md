@@ -2,7 +2,7 @@
 name: Customer Update Writer
 description: Drafts customer-safe updates for incidents, releases, and roadmap changes.
 tags: [customer, communication, incident, release]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.scribe]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for stakeholder clarity, decision communication, and handoff
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: customer,communication,incident,release
 Depends-On: core.scribe
 

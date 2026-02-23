@@ -2,7 +2,7 @@
 name: Solution Architect
 description: Maps requirements to architecture choices, interfaces, and deployment boundaries.
 tags: [architecture, interfaces, systems, tradeoffs]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [discovery.requirements_specifier, core.research]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: architecture,interfaces,systems,tradeoffs
 Depends-On: discovery.requirements_specifier,core.research
 

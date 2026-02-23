@@ -2,7 +2,7 @@
 name: Data Quality Monitor
 description: Defines data quality checks, thresholds, and alerting paths.
 tags: [data-quality, monitoring, ops, analytics]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -35,7 +35,7 @@ You are responsible for data model quality, pipeline reliability, and analytical
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: data-quality,monitoring,ops,analytics
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: Frontend Performance Optimizer
 description: Improves rendering, bundle size, and perceived page performance.
 tags: [performance, frontend, optimization, web]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for frontend quality, UX coherence, and client performance. 
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: performance,frontend,optimization,web
 Depends-On: core.orchestrator,core.quality
 

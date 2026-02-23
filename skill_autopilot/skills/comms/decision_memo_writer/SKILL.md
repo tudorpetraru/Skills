@@ -2,7 +2,7 @@
 name: Decision Memo Writer
 description: Produces decision memos with options, tradeoffs, and recommendations.
 tags: [decision, memo, governance, communication]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.scribe]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for stakeholder clarity, decision communication, and handoff
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: decision,memo,governance,communication
 Depends-On: core.scribe
 

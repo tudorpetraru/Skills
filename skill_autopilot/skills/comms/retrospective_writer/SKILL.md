@@ -2,7 +2,7 @@
 name: Retrospective Writer
 description: Converts team learnings into concrete process improvements.
 tags: [retrospective, continuous-improvement, quality, team]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.scribe]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for stakeholder clarity, decision communication, and handoff
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: retrospective,continuous-improvement,quality,team
 Depends-On: core.scribe
 

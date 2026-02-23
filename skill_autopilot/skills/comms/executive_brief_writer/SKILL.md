@@ -2,7 +2,7 @@
 name: Executive Brief Writer
 description: Summarizes project progress, risks, and decisions for leadership.
 tags: [executive, communication, risk, status]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.scribe]
 ---
 
@@ -34,7 +34,7 @@ You are responsible for stakeholder clarity, decision communication, and handoff
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: executive,communication,risk,status
 Depends-On: core.scribe
 

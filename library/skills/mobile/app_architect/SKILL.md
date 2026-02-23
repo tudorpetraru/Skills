@@ -2,7 +2,7 @@
 name: Mobile App Architect
 description: Defines mobile architecture patterns for scale and maintainability.
 tags: [mobile, architecture, ios, android]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for mobile reliability, release discipline, and app quality.
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: mobile,architecture,ios,android
 Depends-On: core.orchestrator,core.quality
 

@@ -2,7 +2,7 @@
 name: Hypothesis Generator
 description: Creates testable hypotheses with measurable success criteria.
 tags: [hypotheses, experiments, metrics, discovery]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 ---
 
 # Hypothesis Generator
@@ -32,7 +32,7 @@ You are responsible for problem framing, context gathering, and solution-shaping
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: hypotheses,experiments,metrics,discovery
 
 ## Execution Workflow

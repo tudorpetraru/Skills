@@ -2,7 +2,7 @@
 name: Queue Worker Planner
 description: Designs queue workers with idempotency and dead-letter recovery.
 tags: [queues, workers, reliability, backend]
-hosts: [claude_desktop, codex_desktop]
+hosts: [claude_desktop]
 dependencies: [core.orchestrator, core.quality]
 ---
 
@@ -33,7 +33,7 @@ You are responsible for backend service robustness, API quality, and data integr
 - Definition of done expected by downstream owner(s).
 
 ## Working Contract
-Hosts: claude_desktop,codex_desktop
+Hosts: claude_desktop
 Tags: queues,workers,reliability,backend
 Depends-On: core.orchestrator,core.quality
 
